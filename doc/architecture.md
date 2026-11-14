@@ -12,6 +12,7 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 | `internal/names` | The name a Drive item gets on the drive: forbidden characters, same names in one folder, service files |
 | `internal/state` | What is known about one destination: Drive as last seen, copies, selection, SKIP, trash. A SQLite file in `<destination>/.sync-states/` |
 | `internal/theme` | Colour schemes |
+| `internal/volume` | The volume a copy goes to: free space, file system, connected drives. One file per operating system |
 | `internal/i18n` | Interface texts, `locales/<lang>.json` |
 | `internal/filekind` | Kind of a file by its extension |
 | `internal/format` | Sizes and numbers as text |
@@ -44,6 +45,7 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 | `internal/names` | Назва, яку елемент Drive отримує на носії: заборонені символи, однакові назви в одній папці, службові файли |
 | `internal/state` | Що відомо про одну папку призначення: Drive з останнього перегляду, копії, вибір, SKIP, кошик. Файл SQLite у `<призначення>/.sync-states/` |
 | `internal/theme` | Колірні схеми |
+| `internal/volume` | Том, на який іде копія: вільне місце, файлова система, підключені носії. На кожну операційну систему свій файл |
 | `internal/i18n` | Тексти інтерфейсу, `locales/<мова>.json` |
 | `internal/filekind` | Тип файла за розширенням |
 | `internal/format` | Розміри й числа як текст |

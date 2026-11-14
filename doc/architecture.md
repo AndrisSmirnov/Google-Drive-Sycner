@@ -7,6 +7,7 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 | `cmd/syncer` | Flags, starts the interface |
 | `internal/tui` | The screens. `app.go` routes between them, `ui.go` draws rows, one file per screen |
 | `internal/demo` | Made-up Drive data the interface runs on |
+| `internal/drive` | Read-only Google Drive client: sign-in with a Service Account key, listing. Standard library only |
 | `internal/theme` | Colour schemes |
 | `internal/i18n` | Interface texts, `locales/<lang>.json` |
 | `internal/filekind` | Kind of a file by its extension |
@@ -35,6 +36,7 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 | `cmd/syncer` | Прапорці, запуск інтерфейсу |
 | `internal/tui` | Екрани. `app.go` перемикає між ними, `ui.go` малює рядки, на кожен екран свій файл |
 | `internal/demo` | Вигадані дані Drive, на яких працює інтерфейс |
+| `internal/drive` | Клієнт Google Drive лише на читання: вхід за ключем Service Account, перелік. Тільки стандартна бібліотека |
 | `internal/theme` | Колірні схеми |
 | `internal/i18n` | Тексти інтерфейсу, `locales/<мова>.json` |
 | `internal/filekind` | Тип файла за розширенням |

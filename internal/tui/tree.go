@@ -1,15 +1,14 @@
 package tui
 
 import (
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"syncer-gdrive/internal/demo"
 	"syncer-gdrive/internal/format"
+	"syncer-gdrive/internal/names"
 )
 
 type treeState struct {
@@ -174,25 +173,12 @@ func (s treeState) clashes() map[*demo.Node]string {
 			}
 			sort.SliceStable(group, func(a, b int) bool { return group[a].Modified < group[b].Modified })
 			for i, n := range group {
-				out[n] = numbered(n.Name, i+1)
+				out[n] = names.Numbered(n.Name, i+1)
 			}
 		}
 	}
 	walk(s.root)
 	return out
-}
-
-// numbered puts a copy number before the extension: the second "a.pdf"
-// becomes "a (2).pdf". The first copy keeps its name.
-func numbered(name string, n int) string {
-	if n == 1 {
-		return name
-	}
-	ext := filepath.Ext(name)
-	if ext == name { // a name like ".env" has no extension to keep
-		ext = ""
-	}
-	return strings.TrimSuffix(name, ext) + " (" + strconv.Itoa(n) + ")" + ext
 }
 
 func eachNode(nodes []*demo.Node, fn func(*demo.Node)) {

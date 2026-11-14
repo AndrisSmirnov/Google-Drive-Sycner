@@ -218,7 +218,7 @@ func sortedBy(t *testing.T, s browser, order int, desc bool) {
 		before, after := s.items[shown[i-1]], s.items[shown[i]]
 		c := strings.Compare(key(before), key(after))
 		if order == byName {
-			c = names.CompareString(before.Name(), after.Name()) // by the alphabet, not by character code
+			c = alphabet.CompareString(before.Name(), after.Name()) // by the alphabet, not by character code
 		}
 		if (!desc && c > 0) || (desc && c < 0) {
 			t.Errorf("%s by %s, desc %v: %s comes before %s", s.kind, listOrders[order], desc, before.Path, after.Path)
@@ -788,11 +788,11 @@ func TestNamesFollowTheAlphabet(t *testing.T) {
 		{"", "Архів 2019"}, // files outside any folder come first
 	}
 	for _, pair := range inOrder {
-		if names.CompareString(pair[0], pair[1]) >= 0 {
+		if alphabet.CompareString(pair[0], pair[1]) >= 0 {
 			t.Errorf("%q should come before %q", pair[0], pair[1])
 		}
 	}
-	if names.CompareString("Звіт.docx", "звіт.docx") != 0 {
+	if alphabet.CompareString("Звіт.docx", "звіт.docx") != 0 {
 		t.Error("names that differ only in case should be equal")
 	}
 }
@@ -986,14 +986,6 @@ func TestSameNamesAreFlagged(t *testing.T) {
 		}
 	}
 
-	for name, want := range map[string]string{"a.pdf": "a (2).pdf", "README": "README (2)", ".env": ".env (2)", "архів.tar.gz": "архів.tar (2).gz"} {
-		if got := numbered(name, 2); got != want {
-			t.Errorf("numbered(%q, 2) = %q, want %q", name, got, want)
-		}
-	}
-	if got := numbered("a.pdf", 1); got != "a.pdf" {
-		t.Errorf("the first copy was renamed to %q", got)
-	}
 }
 
 // The main menu starts with choosing: it is what a sync acts on.

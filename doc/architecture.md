@@ -8,6 +8,7 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 | `internal/tui` | The screens. `app.go` routes between them, `ui.go` draws rows, one file per screen |
 | `internal/demo` | Made-up Drive data the interface runs on |
 | `internal/drive` | Read-only Google Drive client: sign-in with a Service Account key, listing, download that can be continued, export of Google documents. Standard library only |
+| `internal/names` | The name a Drive item gets on the drive: forbidden characters, same names in one folder, service files |
 | `internal/theme` | Colour schemes |
 | `internal/i18n` | Interface texts, `locales/<lang>.json` |
 | `internal/filekind` | Kind of a file by its extension |
@@ -37,6 +38,7 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 | `internal/tui` | Екрани. `app.go` перемикає між ними, `ui.go` малює рядки, на кожен екран свій файл |
 | `internal/demo` | Вигадані дані Drive, на яких працює інтерфейс |
 | `internal/drive` | Клієнт Google Drive лише на читання: вхід за ключем Service Account, перелік, завантаження з продовженням, експорт документів Google. Тільки стандартна бібліотека |
+| `internal/names` | Назва, яку елемент Drive отримує на носії: заборонені символи, однакові назви в одній папці, службові файли |
 | `internal/theme` | Колірні схеми |
 | `internal/i18n` | Тексти інтерфейсу, `locales/<мова>.json` |
 | `internal/filekind` | Тип файла за розширенням |

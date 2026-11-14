@@ -46,10 +46,10 @@ const (
 	menuConfirm // the question before files are deleted for good
 )
 
-// names orders file and folder names by the alphabet rather than by
+// alphabet orders file and folder names by the alphabet rather than by
 // character code: і sits after и, not after я. Case is ignored and numbers
 // go by value, so IMG_2 comes before IMG_10.
-var names = collate.New(language.Ukrainian, collate.IgnoreCase, collate.Numeric)
+var alphabet = collate.New(language.Ukrainian, collate.IgnoreCase, collate.Numeric)
 
 // browser is a list of files kept on the drive outside the copy — the trash
 // or the SKIP list — that can be sorted, grouped, filtered and folded.
@@ -108,7 +108,7 @@ func (s browser) sorted() []int {
 		var c int
 		switch s.order {
 		case byName:
-			c = names.CompareString(x.Name(), y.Name())
+			c = alphabet.CompareString(x.Name(), y.Name())
 		case byType:
 			c = cmp.Compare(filekind.Ext(x.Name()), filekind.Ext(y.Name()))
 		case bySize:
@@ -120,7 +120,7 @@ func (s browser) sorted() []int {
 			c = -c
 		}
 		if c == 0 {
-			c = names.CompareString(x.Path, y.Path)
+			c = alphabet.CompareString(x.Path, y.Path)
 		}
 		return c
 	})
@@ -161,7 +161,7 @@ func (s browser) compareFolders(a, b *folderNode) int {
 	var c int
 	switch s.order {
 	case byName:
-		c = names.CompareString(a.name, b.name)
+		c = alphabet.CompareString(a.name, b.name)
 	case byType: // folders have no type: by name, always from A
 	case bySize:
 		size := func(f *folderNode) (sum int64) {
@@ -178,7 +178,7 @@ func (s browser) compareFolders(a, b *folderNode) int {
 		c = -c
 	}
 	if c == 0 {
-		c = names.CompareString(a.name, b.name)
+		c = alphabet.CompareString(a.name, b.name)
 	}
 	return c
 }

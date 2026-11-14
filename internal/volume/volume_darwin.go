@@ -26,6 +26,9 @@ func Stat(path string) (Info, error) {
 	return info, nil
 }
 
+// mountParents are the folders in which connected drives appear.
+func mountParents() []string { return []string{"/Volumes"} }
+
 // Roots lists the connected volumes.
 func Roots() []string {
 	entries, _ := os.ReadDir("/Volumes")

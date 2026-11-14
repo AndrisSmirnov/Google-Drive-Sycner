@@ -28,6 +28,32 @@ func TestStat(t *testing.T) {
 	}
 }
 
+func TestPresent(t *testing.T) {
+	dir := t.TempDir()
+	if !Present(dir) {
+		t.Error("an existing folder is reported as not there")
+	}
+	// A folder several levels below an existing one can be created.
+	if !Present(filepath.Join(dir, "new", "deeper", "backup")) {
+		t.Error("a folder that can be created is reported as not there")
+	}
+	// A file is not a folder.
+	file := filepath.Join(dir, "file")
+	os.WriteFile(file, nil, 0o644)
+	if Present(file) {
+		t.Error("a file is taken for a destination")
+	}
+	// A folder on a drive that is not connected must not be created.
+	for _, parent := range mountParents() {
+		if _, err := os.Stat(parent); err != nil {
+			continue
+		}
+		if Present(filepath.Join(parent, "no-such-drive-for-the-test", "backup")) {
+			t.Errorf("a folder on a drive missing from %s is reported as usable", parent)
+		}
+	}
+}
+
 func TestMaxFileSizeAndLabel(t *testing.T) {
 	for fs, limited := range map[string]bool{"msdos": true, "vfat": true, "fat32": true, "exfat": false, "apfs": false, "ntfs": false, "ext4": false, "": false} {
 		if got := (Info{FileSystem: fs}).MaxFileSize(); (got == 4<<30-1) != limited || (!limited && got != 0) {

@@ -79,15 +79,19 @@ func mountOf(path string) (mount, fs string) {
 	return mount, fs
 }
 
-// Roots lists the places where connected drives appear.
-func Roots() []string {
-	var parents []string
+// mountParents are the folders in which connected drives appear.
+func mountParents() []string {
+	parents := []string{"/media", "/run/media", "/mnt"}
 	if u, err := user.Current(); err == nil && u.Username != "" {
 		parents = append(parents, filepath.Join("/media", u.Username), filepath.Join("/run/media", u.Username))
 	}
-	parents = append(parents, "/mnt")
+	return parents
+}
+
+// Roots lists the places where connected drives appear.
+func Roots() []string {
 	var out []string
-	for _, parent := range parents {
+	for _, parent := range mountParents()[2:] {
 		entries, _ := os.ReadDir(parent)
 		for _, e := range entries {
 			if e.IsDir() {

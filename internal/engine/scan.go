@@ -385,6 +385,10 @@ func (e *Engine) Known() (*Snapshot, error) {
 	return s, nil
 }
 
+// Latest is what the most recent look found, by Refresh, Plan or Known; nil
+// before any of them.
+func (e *Engine) Latest() *Snapshot { return e.last }
+
 // LastSync tells when a destination was last synced: zero if it never was,
 // or if the folder holds no copy. It does not create anything.
 func LastSync(destination string) time.Time {

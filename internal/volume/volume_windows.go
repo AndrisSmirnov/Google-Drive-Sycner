@@ -39,6 +39,9 @@ func Stat(path string) (Info, error) {
 	return info, nil
 }
 
+// mountParents is empty on Windows: a drive is a letter, not a folder.
+func mountParents() []string { return nil }
+
 // Roots lists the drive letters in use.
 func Roots() []string {
 	mask, err := windows.GetLogicalDrives()

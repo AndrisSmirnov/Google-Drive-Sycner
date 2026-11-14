@@ -85,6 +85,28 @@ func destinationsIn(roots []string) []string {
 	return out
 }
 
+// Present tells whether a destination can be used: the folder is there, or
+// it can be created. A folder on a drive that is not connected cannot: its
+// nearest existing ancestor is the place where drives appear (/Volumes on
+// macOS), or nothing exists at all (a drive letter not in use on Windows).
+// Creating the folder there would put the copy on the system disk under
+// the name of the missing drive.
+func Present(path string) bool {
+	nearest := existing(path)
+	if info, err := os.Stat(nearest); err != nil || !info.IsDir() {
+		return false
+	}
+	if nearest == filepath.Clean(path) {
+		return true
+	}
+	for _, parent := range mountParents() {
+		if nearest == filepath.Clean(parent) {
+			return false
+		}
+	}
+	return true
+}
+
 // existing walks up from a path to the nearest folder that exists: a
 // destination may not have been created yet.
 func existing(path string) string {

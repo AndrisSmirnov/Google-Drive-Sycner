@@ -4,7 +4,7 @@
   "n.folders": {"one": "%s folder", "other": "%s folders"},
 
   "app.tagline": "Google Drive → local drive",
-  "app.version": "v0 · prototype, demo data",
+  "app.demo": "demo data",
   "app.small": "Window too small: at least %d×%d is needed.",
 
   "cli.key.usage": "Name the key file: syncer key PATH/TO/key.json",
@@ -297,9 +297,9 @@
   "reason.local": "replaced by the Drive version",
   "preview.opened": "Preview opened: %s",
   "preview.closed": "Preview closed.",
-  "preview.na": "Preview works on macOS only.",
+  "preview.na": "No program was found to show the file.",
   "preview.failed": "Could not open the preview: %s",
-  "preview.demo": "Demo preview\n\nFile: %s\nSize: %s\nModified: %s\n\nThe prototype has no files, so this stand-in is all there is.\nThe real version opens the file itself — the way Finder shows it on Space.\n",
+  "preview.demo": "Demo preview\n\nFile: %s\nSize: %s\nModified: %s\n\nDemo data has no files, so this stand-in is all there is.\nOn real data the file itself opens.\n",
 
   "set.title": "Settings",
   "set.account": "Service Account",
@@ -316,7 +316,7 @@
   "acc.copy": "Copy email",
   "acc.replace": "Replace the key",
   "acc.remove": "Remove the key",
-  "demo.na": "This action does nothing in the prototype.",
+  "demo.na": "This action does nothing on demo data.",
 
   "dest.path": "Path",
   "dest.volume": "Volume",
@@ -358,7 +358,7 @@
   "wiz.key.text": "Create a Service Account in Google Cloud, enable the Drive API and download the JSON key.",
   "wiz.key.label": "Path to the key file",
   "wiz.key.ok": "The key is valid",
-  "wiz.key.note": "The key is copied to this computer. It never goes onto the drive.",
+  "wiz.key.note": "The key is copied to this computer. It goes onto the drive only if you ask for it, and only encrypted.",
   "wiz.share.title": "Folder access",
   "wiz.share.text": "Share the Google Drive folder you need with this email as a Viewer:",
   "wiz.share.ok": "Folders available: %d",

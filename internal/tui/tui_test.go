@@ -641,7 +641,7 @@ func TestSyncAsksWhereToGo(t *testing.T) {
 		}
 		m = press(t, m, "esc", "esc", "2")
 		wantScreen(t, m, scrWhere)
-		// Another folder cannot be typed in the prototype, and says so.
+		// Another folder cannot be typed on demo data, and says so.
 		m = press(t, m, strconv.Itoa(len(demo.Destinations)+1))
 		wantScreen(t, m, scrWhere)
 		if m.flash != m.tr.T("demo.na") {

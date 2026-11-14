@@ -1,4 +1,4 @@
-// Package demo provides the made-up data the prototype runs on.
+// Package demo provides the made-up data the menu runs on in demo mode.
 // Nothing here touches Google Drive or the file system.
 package demo
 
@@ -25,7 +25,7 @@ type Destination struct {
 	Missing  bool   // the folder is not there: the drive is not connected
 }
 
-// Destinations lists the folders the prototype knows: the one set up in the
+// Destinations lists the folders the demo knows: the one set up in the
 // first run, and a second drive that has never been synced to.
 var Destinations = []Destination{
 	{Path: "/Volumes/DOOMSDAY/drive-backup", Volume: "DOOMSDAY · exFAT", Free: 412 * format.Gb, Capacity: format.Tb, LastSync: "2026-11-12 21:40"},

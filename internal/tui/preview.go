@@ -87,8 +87,8 @@ func osc52(text string) {
 var openPreview = quickLook
 
 // quickLook opens the macOS Quick Look window, the one Finder shows on
-// Space. The prototype has no real files, so it previews a stand-in text
-// file that is removed when the window closes.
+// Space. Demo data has no real files, so it previews a stand-in text file
+// that is removed when the window closes.
 func quickLook(name, text string) (*viewer, error) {
 	if runtime.GOOS != "darwin" {
 		return nil, errNoViewer

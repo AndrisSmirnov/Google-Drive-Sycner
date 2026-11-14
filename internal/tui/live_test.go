@@ -588,3 +588,23 @@ func TestServiceAccountActions(t *testing.T) {
 		t.Errorf("texts missing from the catalog: %v", missing)
 	}
 }
+
+// The head of the menu names the version, and speaks of demo data only
+// when the data is made up.
+func TestHeadTellsDemoDataFromReal(t *testing.T) {
+	made := start(t, Options{Version: "1.2.3", Lang: "en"})
+	if got := made.version(); got != "v1.2.3 · demo data" {
+		t.Errorf("head on demo data = %q", got)
+	}
+	if !strings.Contains(made.View(), "v1.2.3 · demo data") {
+		t.Error("the menu on demo data does not say so")
+	}
+	_, _, live := ready(t)
+	live.opts.Version = "1.2.3"
+	if got := live.version(); got != "v1.2.3" {
+		t.Errorf("head on real data = %q", got)
+	}
+	if strings.Contains(live.View(), live.tr.T("app.demo")) {
+		t.Error("the menu on real data speaks of demo data")
+	}
+}

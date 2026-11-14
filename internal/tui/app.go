@@ -1,6 +1,7 @@
-// Package tui is the terminal interface of the prototype. It runs on demo
-// data only: no Drive access, and no file operations apart from the
-// temporary stand-in file of the trash preview.
+// Package tui is the terminal interface. A live session works on Google
+// Drive and on the destination through the engine. With demo data nothing
+// is touched: no Drive access, and no file operations apart from the
+// temporary stand-in file of the preview.
 package tui
 
 import (
@@ -20,6 +21,7 @@ import (
 // Options come from the command line.
 type Options struct {
 	FirstRun bool
+	Version  string // shown in the head of the menu
 	Demo     string // "", "no-drive" or "lost-access"
 	Lang     string // "uk" or "en"
 	Theme    string // "auto", "dark" or "light"

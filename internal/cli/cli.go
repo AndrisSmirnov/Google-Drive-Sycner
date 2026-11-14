@@ -85,6 +85,7 @@ func menu(args []string, stderr io.Writer) int {
 	if err := flags.Parse(args); err != nil {
 		return ExitNotStarted
 	}
+	opts.Version = Version
 	var model tui.Model
 	var err error
 	if *demoMode != "" || opts.FirstRun {

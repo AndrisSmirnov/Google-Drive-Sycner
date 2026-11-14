@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -31,6 +32,19 @@ func (m Model) menuItems() []menuItem {
 	}
 }
 
+// version is the right end of the head: the version of the program, and a
+// note when the data is made up.
+func (m Model) version() string {
+	parts := make([]string, 0, 2)
+	if m.opts.Version != "" {
+		parts = append(parts, "v"+m.opts.Version)
+	}
+	if m.lv == nil {
+		parts = append(parts, m.tr.T("app.demo"))
+	}
+	return strings.Join(parts, " · ")
+}
+
 func (m Model) viewMenu() ([]string, string) {
 	th, tr := m.th, m.tr
 	files, bytes := m.tree.selected()
@@ -47,7 +61,7 @@ func (m Model) viewMenu() ([]string, string) {
 	label := func(key string) cell { return t(tr.T(key), th.Dim).w(12) }
 
 	out := []string{
-		m.line(t("SYNCER", th.Accent).b(), t("  "+tr.T("app.tagline"), th.Dim), m.gap(), t(tr.T("app.version"), th.Dim)),
+		m.line(t("SYNCER", th.Accent).b(), t("  "+tr.T("app.tagline"), th.Dim), m.gap(), t(m.version(), th.Dim)),
 		m.rule(),
 		m.line(label("status.account"), t(account, th.Fg)),
 		m.line(label("status.drive"), t(dest.Path+"  ", th.Fg), drive),

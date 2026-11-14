@@ -1267,6 +1267,43 @@ func TestFrameDoesNotFollowTheLocale(t *testing.T) {
 	press(t, m, "1", "esc", "3", "esc", "4", "esc", "5", "4", "esc", "1", "esc", "esc", "2", "enter")
 }
 
+// Labels that stand in a column of a fixed width must fit it in every
+// language and leave a gap before the next column: a label that does not
+// is cut with "…" or runs into the value beside it.
+func TestLabelsFitTheirColumns(t *testing.T) {
+	columns := []struct {
+		width int
+		keys  []string
+	}{
+		{11, []string{"status.account", "status.drive", "status.free", "status.last"}},
+		{10, []string{"acc.email", "acc.key", "acc.access", "dest.path", "dest.volume", "dest.free", "dest.copy", "dest.trash"}},
+		{23, []string{"set.account", "set.dest", "set.lang", "set.theme"}},
+		{31, []string{"pre.nodrive", "pre.drive.ok", "pre.lost", "pre.access.ok", "pre.space.ok", "pre.space.no", "pre.clash"}},
+		{21, []string{"pre.new", "pre.left", "pre.updated", "pre.moves", "pre.deleted", "pre.local",
+			"pre.not.shortcut", "pre.not.unsupported", "pre.not.service", "pre.not.forbidden", "pre.not.too-large",
+			"sum.downloaded", "sum.updated", "sum.trash", "sum.skip", "sum.removed", "sum.skipped", "sum.failed", "sum.moved"}},
+		{25, []string{"del.act.delete", "del.act.skip", "del.act.trash"}},
+		{11, []string{"del.act.delete.short", "del.act.skip.short", "del.act.trash.short"}},
+		{7, []string{"run.total", "run.file"}},
+		{8, []string{"col.size"}},
+		{11, []string{"col.modified"}},
+		{12, []string{"col.created", "col.added.trash", "col.added.skip"}},
+	}
+	for _, lang := range langs() {
+		tr := start(t, Options{Lang: lang}).tr
+		for _, c := range columns {
+			for _, key := range c.keys {
+				if w := textWidth(tr.T(key)); w > c.width {
+					t.Errorf("%s: %q is %d columns wide, its column holds %d: %q", lang, key, w, c.width, tr.T(key))
+				}
+			}
+		}
+		if missing := tr.Missing(); len(missing) > 0 {
+			t.Errorf("%s: texts missing from the catalog: %v", lang, missing)
+		}
+	}
+}
+
 func TestWrap(t *testing.T) {
 	cases := []struct {
 		text  string

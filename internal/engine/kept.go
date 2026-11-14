@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"context"
 	"errors"
+	"os"
 
 	"syncer-gdrive/internal/state"
 )
@@ -44,6 +46,50 @@ func (e *Engine) EmptyTrash() error {
 		}
 	}
 	return nil
+}
+
+// Checked is what a full check of the copy found.
+type Checked struct {
+	Good    Tally // files whose content matches what was copied
+	Damaged int   // files whose content differs: bit rot, or an edit that kept size and time
+	Missing int   // files that are gone from the drive
+}
+
+// Verify reads every copied file and compares its checksum with the one
+// recorded when it was copied. A sync only looks at sizes and times; this
+// is the slow, thorough check. Files that fail it are forgotten as copies,
+// so the next sync fetches them again; the damaged file itself is not
+// deleted — that sync moves it into the trash. Google documents have no
+// checksum and are not checked.
+func (e *Engine) Verify(ctx context.Context) (Checked, error) {
+	var found Checked
+	items, err := e.store.Items()
+	if err != nil {
+		return found, err
+	}
+	var redo []string
+	for _, it := range items {
+		if it.Copy == nil || it.Google != "" {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return found, err
+		}
+		sum, err := checksum(e.local(it.Path))
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			found.Missing++
+			redo = append(redo, it.ID)
+		case err != nil:
+			return found, err
+		case sum != it.Copy.MD5:
+			found.Damaged++
+			redo = append(redo, it.ID)
+		default:
+			found.Good.add(it.Copy.Size)
+		}
+	}
+	return found, e.store.ClearCopied(redo...)
 }
 
 // Unskip takes a file off the SKIP list. The file stays on the drive.

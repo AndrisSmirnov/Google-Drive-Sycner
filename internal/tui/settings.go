@@ -198,10 +198,11 @@ func (m Model) viewDest() ([]string, string) {
 		m.blank(),
 		m.pick(m.set.sub == 0, "1  "+tr.T("dest.change")),
 		m.pick(m.set.sub == 1, "2  "+checkbox(m.askDest)+tr.T("dest.ask")),
+		m.pick(m.set.sub == 2, "3  "+tr.T("dest.verify")),
 		m.blank(),
 	)
 	out = append(out, m.para(tr.T("dest.note"), th.Dim, m.cw())...)
-	return out, m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.run"), "1–2", tr.T("hint.direct"), "Esc", tr.T("hint.back"))
+	return out, m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.run"), "1–3", tr.T("hint.direct"), "Esc", tr.T("hint.back"))
 }
 
 // langRows lists the languages as radio buttons; shared with the wizard,
@@ -353,14 +354,16 @@ func (m Model) keySettings(key string) (tea.Model, tea.Cmd) {
 			m.flash = m.tr.T("demo.na")
 		}
 	case scrDest:
-		m.set.sub = move(m.set.sub, 2, key)
-		if row, ok := digit(key, 2); ok {
+		m.set.sub = move(m.set.sub, 3, key)
+		if row, ok := digit(key, 3); ok {
 			m.set.sub, confirm = row, true
 		}
 		switch {
 		case confirm && m.set.sub == 1:
 			m.askDest = !m.askDest
 			m.persist()
+		case confirm && m.set.sub == 2 && m.lv != nil:
+			return m.verifyCopy()
 		case confirm && m.lv != nil:
 			return m.askWhere(whereSettings), nil
 		case confirm:

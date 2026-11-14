@@ -91,6 +91,11 @@
   "hint.check": "check",
   "hint.again": "again",
 
+  "hint.empty": "empty",
+  "dest.verify": "Check the copy",
+  "busy.verify": "Checking the copy: reading every file on the drive…",
+  "verify.ok": "%s checked: all match what was copied.",
+  "verify.bad": "%s checked. Damaged or gone: %s. The next sync fetches them again.",
   "status.account": "Account",
   "status.drive": "Drive",
   "status.connected": "connected",

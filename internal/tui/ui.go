@@ -165,7 +165,18 @@ func (m Model) buttons(active int, labels ...string) string {
 }
 
 // hints renders "key what · key what" from alternating key and description.
+// When the line is too long for the terminal, pairs are dropped from the
+// end: callers put the keys that matter most first.
 func (m Model) hints(pairs ...string) string {
+	width := func() (w int) {
+		for i := 0; i+1 < len(pairs); i += 2 {
+			w += runewidth.StringWidth(pairs[i]) + 1 + runewidth.StringWidth(pairs[i+1])
+		}
+		return w + 3*(len(pairs)/2-1)
+	}
+	for len(pairs) > 2 && width() > m.cw() {
+		pairs = pairs[:len(pairs)-2]
+	}
 	var cells []cell
 	for i := 0; i+1 < len(pairs); i += 2 {
 		if i > 0 {

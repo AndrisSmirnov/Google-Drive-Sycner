@@ -687,8 +687,10 @@ func (m Model) listHints(s browser, own ...string) string {
 		return m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.choose"),
 			"1–"+strconv.Itoa(s.options()), tr.T("hint.direct"), "Esc", tr.T("hint.cancel"))
 	}
+	// Esc before folding: on a narrow terminal the last hint gives way.
+	own = append(own, "Esc", tr.T("hint.back"))
 	if s.group == groupFolder {
 		own = append(own, "← →", tr.T("hint.fold"))
 	}
-	return m.hints(append(own, "Esc", tr.T("hint.back"))...)
+	return m.hints(own...)
 }

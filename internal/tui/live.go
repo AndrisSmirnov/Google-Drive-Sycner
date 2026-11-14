@@ -77,6 +77,10 @@ type (
 		files   int
 		err     error
 	}
+	verifiedMsg struct {
+		found engine.Checked
+		err   error
+	}
 )
 
 // copyToClipboard hands text to the terminal for the clipboard. Tests
@@ -760,6 +764,35 @@ func (m Model) onAccess(msg accessMsg) (Model, tea.Cmd) {
 	default:
 		m.lv.access, m.lv.checked = msg.folders, true
 		m.flash = tr.T("acc.check.ok", tr.N("n.folders", len(msg.folders)), tr.N("n.files", msg.files))
+	}
+	return m, nil
+}
+
+// verifyCopy reads every file of the copy and compares it with what was
+// copied: the slow check a sync does not do.
+func (m Model) verifyCopy() (Model, tea.Cmd) {
+	eng := m.lv.eng
+	if eng == nil {
+		m.flash = m.tr.T("pre.nodrive")
+		return m, nil
+	}
+	return m.wait(m.tr.T("busy.verify"), func(ctx context.Context) tea.Msg {
+		found, err := eng.Verify(ctx)
+		return verifiedMsg{found, err}
+	})
+}
+
+func (m Model) onVerified(msg verifiedMsg) (Model, tea.Cmd) {
+	m.busy, m.cancel = "", nil
+	tr, found := m.tr, msg.found
+	switch {
+	case errors.Is(msg.err, context.Canceled):
+	case msg.err != nil:
+		m.flash = msg.err.Error()
+	case found.Damaged+found.Missing == 0:
+		m.flash = tr.T("verify.ok", tr.N("n.files", found.Good.Files))
+	default:
+		m.flash = tr.T("verify.bad", tr.N("n.files", found.Good.Files+found.Damaged+found.Missing), tr.N("n.files", found.Damaged+found.Missing))
 	}
 	return m, nil
 }

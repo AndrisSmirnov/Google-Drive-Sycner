@@ -487,6 +487,73 @@ func TestKeyOnTheDriveOpensWithItsPassword(t *testing.T) {
 	}
 }
 
+func TestEmptyingTheTrashAndCheckingTheCopy(t *testing.T) {
+	w, dest, m := ready(t)
+	// Two files are deleted on Drive and go into the trash.
+	w.drive.drop("b")
+	w.drive.drop("c")
+	m = do(t, m, "2", "enter", "enter", "enter")
+	wantScreen(t, m, scrMenu)
+	m = do(t, m, "4")
+	if len(m.trash.items) != 2 {
+		t.Fatalf("trash: %+v", m.trash.items)
+	}
+	// "e" asks before emptying; the first answer is no.
+	m = do(t, m, "e")
+	if m.trash.menu != menuConfirm || !strings.Contains(m.View(), m.tr.N("n.files", 2)) {
+		t.Fatal("emptying the trash does not ask, or does not say how much goes")
+	}
+	m = do(t, m, "enter")
+	if len(m.trash.items) != 2 {
+		t.Fatal("the first answer emptied the trash")
+	}
+	m = do(t, m, "e", "2")
+	if len(m.trash.items) != 0 {
+		t.Fatalf("after emptying: %+v", m.trash.items)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dest, engine.TrashDir)); len(entries) != 0 {
+		t.Errorf("files are left in the trash folder: %v", entries)
+	}
+	m = do(t, m, "esc")
+
+	// Settings → destination folder → check the copy.
+	file := filepath.Join(dest, "Syncer", "нотатки.md")
+	info, _ := os.Stat(file)
+	os.WriteFile(file, []byte("нотатkи"), 0o644) // the same size, another content
+	os.Chtimes(file, info.ModTime(), info.ModTime())
+	m = do(t, m, "5", "2", "3")
+	wantScreen(t, m, scrDest)
+	if want := m.tr.T("verify.bad", m.tr.N("n.files", 1), m.tr.N("n.files", 1)); m.flash != want {
+		t.Errorf("the check says %q, want %q", m.flash, want)
+	}
+	// The next sync repairs it.
+	m = do(t, m, "esc", "esc", "2", "enter", "enter")
+	if got, _ := os.ReadFile(file); string(got) != "нотатки" {
+		t.Errorf("after the repair the file holds %q", got)
+	}
+	m = do(t, m, "5", "2", "3")
+	if want := m.tr.T("verify.ok", m.tr.N("n.files", 1)); m.flash != want {
+		t.Errorf("a clean copy: %q, want %q", m.flash, want)
+	}
+	if missing := m.tr.Missing(); len(missing) > 0 {
+		t.Errorf("texts missing from the catalog: %v", missing)
+	}
+}
+
+func TestHintsThatDoNotFitDropFromTheEnd(t *testing.T) {
+	m := start(t, Options{})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 44, Height: 20})
+	m = next.(Model)
+	line := m.hints("Enter", "відновити", "d", "видалити", "Esc", "назад", "Space", "перегляд")
+	if !strings.Contains(line, "Esc") || strings.Contains(line, "Space") || strings.Contains(line, "…") {
+		t.Errorf("hints on a narrow terminal: %q", line)
+	}
+	// One pair is always kept, even if it has to be cut.
+	if line := m.hints("Enter", strings.Repeat("дуже довга підказка ", 5)); !strings.Contains(line, "Enter") {
+		t.Errorf("the only hint is gone: %q", line)
+	}
+}
+
 func TestServiceAccountActions(t *testing.T) {
 	w, _, m := ready(t)
 	m = do(t, m, "5", "1")

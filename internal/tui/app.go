@@ -228,6 +228,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onRan(msg)
 	case accessMsg:
 		return m.onAccess(msg)
+	case verifiedMsg:
+		return m.onVerified(msg)
 	case tea.KeyMsg:
 		key := msg.String()
 		if key == "ctrl+c" {

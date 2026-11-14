@@ -380,6 +380,56 @@ func TestAStrangerAtTheTargetIsNotOverwritten(t *testing.T) {
 	}
 }
 
+func TestVerifyFindsWhatASyncCannotSee(t *testing.T) {
+	d := newFakeDrive()
+	d.folder("root", "", "Syncer")
+	for _, id := range []string{"good", "rotten", "gone"} {
+		d.file(id, "root", id+".bin", "content of "+id, 1)
+	}
+	d.google("doc", "root", "Звіт", "document", "exported")
+	e, dest := open(t, d)
+	run(t, e, nil)
+
+	// One file is damaged in a way that keeps its size and time; one is deleted.
+	rotten := filepath.Join(dest, "Syncer", "rotten.bin")
+	info, _ := os.Stat(rotten)
+	os.WriteFile(rotten, []byte("c0ntent of rotten"), 0o644)
+	os.Chtimes(rotten, info.ModTime(), info.ModTime())
+	os.Remove(filepath.Join(dest, "Syncer", "gone.bin"))
+
+	// A sync notices the missing file but not the damaged one.
+	p, _ := planned(t, e)
+	if len(p.Downloads) != 1 || p.Downloads[0].Why != ForMissing {
+		t.Fatalf("before the check a sync plans %+v", p.Downloads)
+	}
+	found, err := e.Verify(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Good.Files != 1 || found.Damaged != 1 || found.Missing != 1 {
+		t.Errorf("the check found %+v", found)
+	}
+	// After the check the next sync repairs both, and keeps the damaged
+	// file in the trash rather than destroying it.
+	r := run(t, e, nil)
+	got := entries(t, dest)
+	if got["Syncer/rotten.bin"] != "content of rotten" || got["Syncer/gone.bin"] != "content of gone" || len(r.Failures) != 0 {
+		t.Errorf("after the repair the copy holds %v", got)
+	}
+	trashed, _ := e.store.Trashed()
+	if len(trashed) != 1 || trashed[0].Path != "Syncer/rotten.bin" {
+		t.Fatalf("trash: %+v", trashed)
+	}
+	if data, _ := os.ReadFile(e.local(trashed[0].Stored)); string(data) != "c0ntent of rotten" {
+		t.Errorf("the damaged file was lost: %q", data)
+	}
+	// A clean copy passes.
+	found, _ = e.Verify(context.Background())
+	if found.Good.Files != 3 || found.Damaged+found.Missing != 0 {
+		t.Errorf("a clean copy: %+v", found)
+	}
+}
+
 func TestTrashAndSkipActions(t *testing.T) {
 	d := newFakeDrive()
 	d.folder("root", "", "Syncer")

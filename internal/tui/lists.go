@@ -72,7 +72,7 @@ func (m Model) fileOf(rel string) string {
 func (m Model) viewTrash() ([]string, string) {
 	tr := m.tr
 	return m.viewList(m.trash), m.listHints(m.trash, "Enter", tr.T("hint.restore"), "d", tr.T("hint.delete"),
-		"Space", tr.T("hint.preview"))
+		"e", tr.T("hint.empty"), "Space", tr.T("hint.preview"))
 }
 
 func (m Model) keyTrash(key string) (tea.Model, tea.Cmd) {
@@ -97,6 +97,16 @@ func (m Model) keyTrash(key string) (tea.Model, tea.Cmd) {
 		// Deleting is for good, so it asks first and says what goes.
 		if ok {
 			s.doomed = row
+			s.open(menuConfirm)
+		}
+	case "e":
+		// Emptying the trash is the same question about everything in it.
+		if len(s.items) > 0 {
+			all := make([]int, len(s.items))
+			for i := range all {
+				all[i] = i
+			}
+			s.doomed = listRow{item: -1, dir: m.tr.T("trash.title"), files: all}
 			s.open(menuConfirm)
 		}
 	case " ":

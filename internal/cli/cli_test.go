@@ -202,7 +202,8 @@ func TestEveryTextIsTranslated(t *testing.T) {
 	if len(keys) < 30 {
 		t.Fatalf("only %d keys found in the source", len(keys))
 	}
-	for _, lang := range []string{"uk", "en"} {
+	for _, l := range i18n.Langs {
+		lang := l.Code
 		tr, err := i18n.Load(lang)
 		if err != nil {
 			t.Fatal(err)

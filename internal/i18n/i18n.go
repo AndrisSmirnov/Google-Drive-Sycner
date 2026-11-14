@@ -13,20 +13,19 @@ import (
 //go:embed locales/*.json
 var locales embed.FS
 
-// Lang is one interface language.
+// Lang is one interface language. Each has a catalog in locales/.
 type Lang struct {
-	Code  string
-	Name  string
-	Ready bool // a catalog exists
+	Code string
+	Name string // in the language itself
 }
 
-// Langs lists every language planned for v0, in menu order.
+// Langs lists the interface languages in menu order.
 var Langs = []Lang{
-	{"uk", "Українська", true},
-	{"en", "English", true},
-	{"pl", "Polski", false},
-	{"ja", "日本語", false},
-	{"zh", "中文", false},
+	{"uk", "Українська"},
+	{"en", "English"},
+	{"pl", "Polski"},
+	{"ja", "日本語"},
+	{"zh", "中文"}, // simplified
 }
 
 type entry struct {

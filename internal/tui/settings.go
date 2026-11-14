@@ -207,7 +207,6 @@ func (m Model) viewDest() ([]string, string) {
 // langRows lists the languages as radio buttons; shared with the wizard,
 // which shows them without numbers.
 func (m Model) langRows(numbered bool) []string {
-	th := m.th
 	var out []string
 	for i, l := range i18n.Langs {
 		mark := "( ) "
@@ -217,11 +216,7 @@ func (m Model) langRows(numbered bool) []string {
 		if numbered {
 			mark = strconv.Itoa(i+1) + "  " + mark
 		}
-		var rest []cell
-		if !l.Ready {
-			rest = []cell{t("  "+m.tr.T("lang.soon"), th.Dim)}
-		}
-		out = append(out, m.pick(i == m.set.sub, mark+l.Name, rest...))
+		out = append(out, m.pick(i == m.set.sub, mark+l.Name))
 	}
 	return out
 }
@@ -237,12 +232,7 @@ func (m Model) viewLang() ([]string, string) {
 
 // setLang switches the interface language; it reports whether it did.
 func (m *Model) setLang(i int) bool {
-	l := i18n.Langs[i]
-	if !l.Ready {
-		m.flash = m.tr.T("lang.later", l.Name)
-		return false
-	}
-	catalog, err := i18n.Load(l.Code)
+	catalog, err := i18n.Load(i18n.Langs[i].Code)
 	if err != nil {
 		m.flash = err.Error()
 		return false

@@ -28,7 +28,7 @@ On a first start the menu asks for the language, the key file, and the folder to
 
 | Flag | Values |
 |---|---|
-| `-lang` | `uk`, `en` |
+| `-lang` | `uk`, `en`, `pl`, `ja`, `zh` |
 | `-palette` | `terminal`, `far`, `ms-dos`, `word`, `matrix`, `dark-plus`, `gruvbox`, `nord`, `ice`, `violet`, `github` |
 | `-theme` | `auto`, `dark`, `light` |
 | `-demo` | `data`, or a problem state: `no-drive`, `lost-access` |
@@ -72,7 +72,7 @@ go test ./...                           # тести
 
 | Прапорець | Значення |
 |---|---|
-| `-lang` | `uk`, `en` |
+| `-lang` | `uk`, `en`, `pl`, `ja`, `zh` |
 | `-palette` | `terminal`, `far`, `ms-dos`, `word`, `matrix`, `dark-plus`, `gruvbox`, `nord`, `ice`, `violet`, `github` |
 | `-theme` | `auto`, `dark`, `light` |
 | `-demo` | `data` або проблемний стан: `no-drive`, `lost-access` |

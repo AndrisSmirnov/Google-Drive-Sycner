@@ -335,8 +335,6 @@
   "dest.note": "After you change the folder, the copy starts from scratch in the new place: the state and the trash live in the folder itself.",
 
   "lang.note": "The language changes at once across the whole menu.",
-  "lang.later": "%s arrives at stage 4.",
-  "lang.soon": "stage 4",
   "lang.changed": "Language changed.",
 
   "theme.scheme": "Palette",

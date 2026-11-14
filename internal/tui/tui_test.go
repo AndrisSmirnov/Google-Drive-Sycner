@@ -106,7 +106,7 @@ func wantScreen(t *testing.T, m Model, want screen) {
 }
 
 func TestEveryScreenFillsTheTerminal(t *testing.T) {
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		for _, theme := range []string{"dark", "light"} {
 			m := start(t, Options{Lang: lang, Theme: theme})
 			checkFrame(t, m, "start")
@@ -192,12 +192,12 @@ func TestProblemStatesAndWizard(t *testing.T) {
 
 	m = start(t, Options{FirstRun: true})
 	checkFrame(t, m, "start")
-	m = press(t, m, "down", "down", "enter") // Polski has no catalog yet
+	m = press(t, m, "down", "down", "enter") // the third language
 	wantScreen(t, m, scrWizard)
-	if m.wiz != 0 {
-		t.Errorf("wizard moved to step %d with an unavailable language", m.wiz)
+	if m.wiz != 1 || m.tr.Code != "pl" {
+		t.Errorf("after choosing Polski: step %d, language %q", m.wiz, m.tr.Code)
 	}
-	m = press(t, m, "up", "enter", "enter", "esc", "enter", "enter", "enter")
+	m = press(t, m, "esc", "up", "enter", "enter", "esc", "enter", "enter", "enter")
 	wantScreen(t, m, scrTree)
 	if m.tr.Code != "en" {
 		t.Errorf("language = %q, want en", m.tr.Code)
@@ -280,7 +280,7 @@ func TestListChoiceLists(t *testing.T) {
 		open string
 		of   func(Model) browser
 	}{{"4", trashOf}, {"3", skipOf}}
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		for _, list := range lists {
 			m := start(t, Options{Lang: lang})
 			m = press(t, m, list.open, "f")
@@ -577,7 +577,7 @@ func TestSkipList(t *testing.T) {
 // A sync starts by asking where it goes, until the question is switched off;
 // the destination settings switch it back on.
 func TestSyncAsksWhereToGo(t *testing.T) {
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		m := start(t, Options{Lang: lang})
 		if !m.askDest {
 			t.Fatal("the question should be on from the start")
@@ -696,7 +696,7 @@ func TestSettingsDigits(t *testing.T) {
 }
 
 func TestPaletteChoice(t *testing.T) {
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		m := start(t, Options{Lang: lang, Theme: "dark"})
 		m = press(t, m, "5", "down", "down", "down", "enter")
 		wantScreen(t, m, scrTheme)
@@ -944,7 +944,7 @@ func TestOneSharedFolder(t *testing.T) {
 // drive. The choice screen marks them, and the checks before a sync say so
 // again for those who skipped the choice.
 func TestSameNamesAreFlagged(t *testing.T) {
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		m := start(t, Options{Lang: lang})
 		clash := m.tree.clashes()
 		var kept, renamed int
@@ -1017,7 +1017,7 @@ func TestMenuStartsWithChoosing(t *testing.T) {
 // files and folders appearing in it later; a folder selected as a whole
 // takes them and shows none.
 func TestNewItemsSwitch(t *testing.T) {
-	for _, lang := range []string{"uk", "en"} {
+	for _, lang := range langs() {
 		m := start(t, Options{Lang: lang})
 		m = press(t, m, "1")
 		top := func(r treeRow) bool { return r.top }

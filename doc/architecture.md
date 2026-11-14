@@ -30,6 +30,7 @@ Where a change goes:
 - **A screen** — a `scr…` constant, a `view…` and a `key…` function in a file of its own, two lines in `app.go`.
 - **A file kind** — `filekind`.
 - **A list with sorting and filtering** — reuse `browser` in `tui/browse.go`; the trash and SKIP are both built on it.
+- **A language** — a catalog `i18n/locales/<code>.json` with the keys of `en.json`, a line in `i18n.Langs`, a plural rule in `i18n.plural`. The tests then check the keys, the placeholders, and that labels fit their columns.
 - **Anything that touches files of the copy** — `engine/disk.go`. It is the one place to change when the copy becomes encrypted.
 
 Rules: nothing is chosen by a key that cycles blindly — options are shown as a list. Anything the user sees is tested at 40x10 and up, in every language.
@@ -68,6 +69,7 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 - **Екран** — константа `scr…`, функції `view…` і `key…` в окремому файлі, два рядки в `app.go`.
 - **Тип файла** — `filekind`.
 - **Список із сортуванням і фільтром** — використати `browser` з `tui/browse.go`; кошик і SKIP обидва збудовані на ньому.
+- **Мова** — каталог `i18n/locales/<код>.json` із ключами `en.json`, рядок в `i18n.Langs`, правило множини в `i18n.plural`. Далі тести перевіряють ключі, підстановки й те, що підписи вміщаються у свої колонки.
 - **Усе, що торкається файлів копії** — `engine/disk.go`. Це єдине місце, яке зміниться, коли копія стане зашифрованою.
 
 Правила: ніщо не обирається клавішею, яка перемикає наосліп, — варіанти показуються списком. Усе, що бачить користувач, тестується від 40x10 і більше, усіма мовами.

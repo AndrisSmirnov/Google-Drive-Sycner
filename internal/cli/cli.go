@@ -68,7 +68,7 @@ func menu(args []string, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	demoMode := flags.String("demo", "", "run on made-up data instead of Google Drive: data, no-drive or lost-access")
 	flags.BoolVar(&opts.FirstRun, "first-run", false, "with -demo: start with the first-run steps")
-	flags.StringVar(&opts.Lang, "lang", "", "interface language: uk or en")
+	flags.StringVar(&opts.Lang, "lang", "", "interface language: uk, en, pl, ja or zh")
 	flags.StringVar(&opts.Theme, "theme", "", "light or dark variant: auto, dark or light")
 	var ids string
 	for i, s := range theme.Schemes {

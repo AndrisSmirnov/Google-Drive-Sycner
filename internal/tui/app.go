@@ -23,7 +23,7 @@ type Options struct {
 	FirstRun bool
 	Version  string // shown in the head of the menu
 	Demo     string // "", "no-drive" or "lost-access"
-	Lang     string // "uk" or "en"
+	Lang     string // the code of a language in i18n.Langs
 	Theme    string // "auto", "dark" or "light"
 	Palette  string // a colour scheme identifier, "" for the default
 }

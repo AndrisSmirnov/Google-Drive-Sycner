@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -328,6 +330,75 @@ func (e *Engine) Refresh(ctx context.Context) (*Snapshot, error) {
 	s.findClashes()
 	e.last = s
 	return s, nil
+}
+
+// Known returns Drive as the state remembers it from the last look, without
+// asking Drive. It is what can be shown before the first Refresh and when
+// there is no connection.
+func (e *Engine) Known() (*Snapshot, error) {
+	known, err := e.store.Items()
+	if err != nil {
+		return nil, err
+	}
+	checked, err := e.store.Checked()
+	if err != nil {
+		return nil, err
+	}
+	takeNew, err := e.store.TakeNew()
+	if err != nil {
+		return nil, err
+	}
+	s := &Snapshot{
+		Items: map[string]state.Item{}, Children: map[string][]string{}, Checked: checked, TakeNew: takeNew,
+		Wanted: map[string]string{}, Clash: map[string]string{}, NotCopied: map[string]Tally{},
+	}
+	for _, it := range known {
+		if it.Seen {
+			s.Items[it.ID] = it
+			s.Wanted[it.ID] = it.Path
+		}
+	}
+	for id, it := range s.Items {
+		if parent, ok := s.Items[it.Parent]; ok && parent.Folder {
+			s.Children[it.Parent] = append(s.Children[it.Parent], id)
+		} else {
+			s.Top = append(s.Top, id)
+		}
+	}
+	order := func(ids []string) {
+		sort.Slice(ids, func(a, b int) bool {
+			x, y := s.Items[ids[a]], s.Items[ids[b]]
+			if x.Folder != y.Folder {
+				return x.Folder
+			}
+			return names.Key(path.Base(x.Path)) < names.Key(path.Base(y.Path))
+		})
+	}
+	order(s.Top)
+	for id := range s.Children {
+		order(s.Children[id])
+	}
+	s.findClashes()
+	if e.last == nil {
+		e.last = s
+	}
+	return s, nil
+}
+
+// LastSync tells when a destination was last synced: zero if it never was,
+// or if the folder holds no copy. It does not create anything.
+func LastSync(destination string) time.Time {
+	if _, err := os.Stat(filepath.Join(destination, state.Dir, "state.db")); err != nil {
+		return time.Time{}
+	}
+	store, err := state.Open(destination)
+	if err != nil {
+		return time.Time{}
+	}
+	defer store.Close()
+	value, _ := store.Meta(MetaLastSync)
+	at, _ := time.Parse(time.RFC3339, value)
+	return at
 }
 
 // findClashes lists the selected files of each folder that end up under

@@ -22,13 +22,14 @@ type Destination struct {
 	Free     int64
 	Capacity int64
 	LastSync string // empty when nothing has been synced there yet
+	Missing  bool   // the folder is not there: the drive is not connected
 }
 
 // Destinations lists the folders the prototype knows: the one set up in the
 // first run, and a second drive that has never been synced to.
 var Destinations = []Destination{
-	{"/Volumes/DOOMSDAY/drive-backup", "DOOMSDAY · exFAT", 412 * format.Gb, format.Tb, "2026-11-12 21:40"},
-	{"/Volumes/ARCHIVE-2/drive-backup", "ARCHIVE-2 · APFS", 1600 * format.Gb, 2 * format.Tb, ""},
+	{Path: "/Volumes/DOOMSDAY/drive-backup", Volume: "DOOMSDAY · exFAT", Free: 412 * format.Gb, Capacity: format.Tb, LastSync: "2026-11-12 21:40"},
+	{Path: "/Volumes/ARCHIVE-2/drive-backup", Volume: "ARCHIVE-2 · APFS", Free: 1600 * format.Gb, Capacity: 2 * format.Tb},
 }
 
 // Selection state of a node.
@@ -40,7 +41,9 @@ const (
 
 // Node is a file or folder on Drive.
 type Node struct {
+	ID       string // on Drive; empty in the demo
 	Name     string
+	Local    string // the name on the drive, where it differs from Name
 	Dir      bool
 	Size     int64  // files only
 	Modified string // files only, YYYY-MM-DD
@@ -195,6 +198,8 @@ func Tree() []*Node {
 // Entry is a file kept on the drive outside the copy: in the .bin trash or
 // on the SKIP list. Dates are YYYY-MM-DD.
 type Entry struct {
+	ID       int64  // of the record; zero in the demo
+	Stored   string // trash only: where the file lies now, relative to the destination
 	Path     string // where the file was on Drive, with its folders
 	Size     int64
 	Created  string // on Drive
@@ -220,22 +225,22 @@ func (e Entry) Dir() string {
 // and differ only in where they were.
 func Trash() []Entry {
 	out := []Entry{
-		{"Відео/Інтерв'ю/інтерв'ю-сире.mov", 1900 * format.Mb, "2026-03-02", "2026-03-02", "2026-10-14", "drive"},
-		{"Відео/Інтерв'ю/чернетка.mov", 1100 * format.Mb, "2026-09-21", "2026-10-30", "2026-11-01", "drive"},
-		{"Відео/тест-камери.mp4", 612 * format.Mb, "2025-12-11", "2025-12-11", "2026-09-30", "drive"},
-		{"Документи/Договори/архів-договорів.zip", 212 * format.Mb, "2024-06-18", "2026-01-09", "2026-10-02", "drive"},
-		{"Документи/Договори/кошторис.xlsx", 840 * format.Kb, "2025-04-08", "2026-09-29", "2026-10-02", "drive"},
-		{"Документи/звіт-v2.docx", 41 * format.Mb, "2026-07-15", "2026-10-27", "2026-10-28", "local"},
-		{"Важливе/Документи/Мої/1.doc", 2 * format.Mb, "2024-02-11", "2025-03-19", "2026-11-09", "drive"},
-		{"Ігри/NFSU2/stats/1.doc", 12 * format.Kb, "2019-07-04", "2019-08-30", "2026-11-09", "drive"},
-		{"Архів 2019/старий-образ.dmg", 96 * format.Mb, "2023-02-27", "2023-02-27", "2026-08-03", "drive"},
-		{"Фото/Карпати/панорама-стара.tif", 38 * format.Mb, "2025-08-17", "2025-08-20", "2026-08-19", "drive"},
-		{"Фото/Карпати/IMG_0031.jpg", 5 * format.Mb, "2026-08-16", "2026-08-16", "2026-08-19", "drive"},
-		{"Фото/Карпати/IMG_0032.jpg", 4 * format.Mb, "2026-08-16", "2026-08-16", "2026-08-19", "drive"},
-		{"Музика/Концерти/концерт-запис.flac", 410 * format.Mb, "2025-05-24", "2025-06-02", "2026-10-20", "drive"},
-		{"Музика/подкаст-чернетка.mp3", 58 * format.Mb, "2026-08-30", "2026-09-10", "2026-09-12", "drive"},
-		{"Музика/голосова-нотатка.m4a", 3 * format.Mb, "2026-11-04", "2026-11-04", "2026-11-05", "drive"},
-		{"нотатки-старі.md", 3 * format.Kb, "2025-01-15", "2026-06-01", "2026-07-22", "drive"},
+		{0, "", "Відео/Інтерв'ю/інтерв'ю-сире.mov", 1900 * format.Mb, "2026-03-02", "2026-03-02", "2026-10-14", "drive"},
+		{0, "", "Відео/Інтерв'ю/чернетка.mov", 1100 * format.Mb, "2026-09-21", "2026-10-30", "2026-11-01", "drive"},
+		{0, "", "Відео/тест-камери.mp4", 612 * format.Mb, "2025-12-11", "2025-12-11", "2026-09-30", "drive"},
+		{0, "", "Документи/Договори/архів-договорів.zip", 212 * format.Mb, "2024-06-18", "2026-01-09", "2026-10-02", "drive"},
+		{0, "", "Документи/Договори/кошторис.xlsx", 840 * format.Kb, "2025-04-08", "2026-09-29", "2026-10-02", "drive"},
+		{0, "", "Документи/звіт-v2.docx", 41 * format.Mb, "2026-07-15", "2026-10-27", "2026-10-28", "local"},
+		{0, "", "Важливе/Документи/Мої/1.doc", 2 * format.Mb, "2024-02-11", "2025-03-19", "2026-11-09", "drive"},
+		{0, "", "Ігри/NFSU2/stats/1.doc", 12 * format.Kb, "2019-07-04", "2019-08-30", "2026-11-09", "drive"},
+		{0, "", "Архів 2019/старий-образ.dmg", 96 * format.Mb, "2023-02-27", "2023-02-27", "2026-08-03", "drive"},
+		{0, "", "Фото/Карпати/панорама-стара.tif", 38 * format.Mb, "2025-08-17", "2025-08-20", "2026-08-19", "drive"},
+		{0, "", "Фото/Карпати/IMG_0031.jpg", 5 * format.Mb, "2026-08-16", "2026-08-16", "2026-08-19", "drive"},
+		{0, "", "Фото/Карпати/IMG_0032.jpg", 4 * format.Mb, "2026-08-16", "2026-08-16", "2026-08-19", "drive"},
+		{0, "", "Музика/Концерти/концерт-запис.flac", 410 * format.Mb, "2025-05-24", "2025-06-02", "2026-10-20", "drive"},
+		{0, "", "Музика/подкаст-чернетка.mp3", 58 * format.Mb, "2026-08-30", "2026-09-10", "2026-09-12", "drive"},
+		{0, "", "Музика/голосова-нотатка.m4a", 3 * format.Mb, "2026-11-04", "2026-11-04", "2026-11-05", "drive"},
+		{0, "", "нотатки-старі.md", 3 * format.Kb, "2025-01-15", "2026-06-01", "2026-07-22", "drive"},
 	}
 	for i := range out {
 		out[i].Path = rooted(out[i].Path)
@@ -247,12 +252,12 @@ func Trash() []Entry {
 // tracked.
 func SkipList() []Entry {
 	out := []Entry{
-		{"нотатки-2024.md", 3 * format.Kb, "2024-01-08", "2024-12-20", "2026-11-13", ""},
-		{"Архів/старий-проєкт.zip", 1200 * format.Mb, "2022-05-30", "2022-06-02", "2026-10-02", ""},
-		{"Документи/чернетка-листа.docx", 48 * format.Kb, "2026-09-01", "2026-09-15", "2026-09-18", ""},
-		{"Відео/Чернетки/невдалий-дубль.mov", 2300 * format.Mb, "2026-08-28", "2026-08-28", "2026-08-30", ""},
-		{"Фото/Скріншоти/скріншот-1.png", format.Mb, "2026-08-10", "2026-08-10", "2026-08-12", ""},
-		{"Фото/Скріншоти/скріншот-2.png", format.Mb, "2026-08-11", "2026-08-11", "2026-08-12", ""},
+		{0, "", "нотатки-2024.md", 3 * format.Kb, "2024-01-08", "2024-12-20", "2026-11-13", ""},
+		{0, "", "Архів/старий-проєкт.zip", 1200 * format.Mb, "2022-05-30", "2022-06-02", "2026-10-02", ""},
+		{0, "", "Документи/чернетка-листа.docx", 48 * format.Kb, "2026-09-01", "2026-09-15", "2026-09-18", ""},
+		{0, "", "Відео/Чернетки/невдалий-дубль.mov", 2300 * format.Mb, "2026-08-28", "2026-08-28", "2026-08-30", ""},
+		{0, "", "Фото/Скріншоти/скріншот-1.png", format.Mb, "2026-08-10", "2026-08-10", "2026-08-12", ""},
+		{0, "", "Фото/Скріншоти/скріншот-2.png", format.Mb, "2026-08-11", "2026-08-11", "2026-08-12", ""},
 	}
 	for i := range out {
 		out[i].Path = rooted(out[i].Path)
@@ -262,6 +267,7 @@ func SkipList() []Entry {
 
 // Deleted is a file that vanished from Drive but still exists on the drive.
 type Deleted struct {
+	ID       string // on Drive; empty in the demo
 	Path     string
 	Size     int64
 	Created  string
@@ -271,10 +277,10 @@ type Deleted struct {
 // DeletedOnDrive returns the files found deleted on Drive.
 func DeletedOnDrive() []Deleted {
 	out := []Deleted{
-		{"Відео/чернетка-2.mov", 1100 * format.Mb, "2026-09-22", "2026-10-30"},
-		{"Фото/IMG_0042-копія.jpg", 4 * format.Mb, "2026-08-19", "2026-08-19"},
-		{"Документи/старий-договір.pdf", 2 * format.Mb, "2024-10-03", "2024-10-03"},
-		{"нотатки-2025.md", 3 * format.Kb, "2025-01-02", "2025-12-29"},
+		{"", "Відео/чернетка-2.mov", 1100 * format.Mb, "2026-09-22", "2026-10-30"},
+		{"", "Фото/IMG_0042-копія.jpg", 4 * format.Mb, "2026-08-19", "2026-08-19"},
+		{"", "Документи/старий-договір.pdf", 2 * format.Mb, "2024-10-03", "2024-10-03"},
+		{"", "нотатки-2025.md", 3 * format.Kb, "2025-01-02", "2025-12-29"},
 	}
 	for i := range out {
 		out[i].Path = rooted(out[i].Path)

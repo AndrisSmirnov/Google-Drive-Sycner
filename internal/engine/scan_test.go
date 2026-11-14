@@ -327,6 +327,54 @@ func TestFilesTheDriveCannotHoldAreLeftOut(t *testing.T) {
 	}
 }
 
+func TestKnownShowsTheLastLookWithoutDrive(t *testing.T) {
+	d := realistic()
+	e, dest := open(t, d)
+	if at := LastSync(dest); !at.IsZero() {
+		t.Errorf("a destination never synced to reports %v", at)
+	}
+	fresh, err := e.Refresh(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.SetSelection(map[string]bool{"a": false}, map[string]bool{"root": false})
+
+	// Drive cannot be reached any more; what is known is still there.
+	d.listErr = context.DeadlineExceeded
+	e.last = nil
+	known, err := e.Known()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(known.Items) != len(fresh.Items) || len(known.Top) != 1 || known.Top[0] != "root" {
+		t.Fatalf("known: %d items, top %v; want %d items", len(known.Items), known.Top, len(fresh.Items))
+	}
+	for id, path := range fresh.Wanted {
+		if known.Wanted[id] != path {
+			t.Errorf("%s is remembered at %q, want %q", id, known.Wanted[id], path)
+		}
+	}
+	if known.Checked["a"] || !known.Checked["q"] || known.TakeNew["root"] {
+		t.Error("the selection is not remembered")
+	}
+	if got, want := known.Children["root"], fresh.Children["root"]; len(got) != len(want) || got[0] != want[0] {
+		t.Errorf("order: %v, want %v", got, want)
+	}
+	if len(known.Clash) != 2 {
+		t.Errorf("clashes: %v", known.Clash)
+	}
+
+	// After a sync the time is recorded and can be read without the engine.
+	d.listErr = nil
+	run(t, e, nil)
+	if at := LastSync(dest); !at.Equal(day(20)) {
+		t.Errorf("last sync: %v, want %v", at, day(20))
+	}
+	if at := LastSync(t.TempDir()); !at.IsZero() {
+		t.Errorf("a folder without a copy reports %v", at)
+	}
+}
+
 func TestFailedLookChangesNothing(t *testing.T) {
 	d := newFakeDrive()
 	d.folder("root", "", "Syncer")

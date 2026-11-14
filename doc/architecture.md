@@ -27,6 +27,7 @@ Where a change goes:
 - **A screen** — a `scr…` constant, a `view…` and a `key…` function in a file of its own, two lines in `app.go`.
 - **A file kind** — `filekind`.
 - **A list with sorting and filtering** — reuse `browser` in `tui/browse.go`; the trash and SKIP are both built on it.
+- **Anything that touches files of the copy** — `engine/disk.go`. It is the one place to change when the copy becomes encrypted.
 
 Rules: nothing is chosen by a key that cycles blindly — options are shown as a list. Anything the user sees is tested at 40x10 and up, in every language.
 
@@ -61,5 +62,6 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 - **Екран** — константа `scr…`, функції `view…` і `key…` в окремому файлі, два рядки в `app.go`.
 - **Тип файла** — `filekind`.
 - **Список із сортуванням і фільтром** — використати `browser` з `tui/browse.go`; кошик і SKIP обидва збудовані на ньому.
+- **Усе, що торкається файлів копії** — `engine/disk.go`. Це єдине місце, яке зміниться, коли копія стане зашифрованою.
 
 Правила: ніщо не обирається клавішею, яка перемикає наосліп, — варіанти показуються списком. Усе, що бачить користувач, тестується від 40x10 і більше, усіма мовами.

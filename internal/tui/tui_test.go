@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
 
@@ -1338,6 +1339,58 @@ func TestWrap(t *testing.T) {
 			if textWidth(line) > c.width {
 				t.Errorf("wrap(%q, %d): line %q is too wide", c.text, c.width, line)
 			}
+		}
+	}
+}
+
+// A wide window is used in full: rows run from margin to margin, so a name
+// that was cut at 80 columns is whole. Running text is the exception: it
+// still wraps at a length that can be read.
+func TestWideWindowIsUsedInFull(t *testing.T) {
+	const w, h = 180, 30
+	at := func(m Model, width int, keys ...string) Model {
+		next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: h})
+		m = next.(Model)
+		for _, k := range keys {
+			next, _ := m.Update(keyMsg(k))
+			m = next.(Model)
+		}
+		return m
+	}
+	m := at(start(t, Options{}), w)
+	if m.cw() != w-4 {
+		t.Fatalf("the content is %d columns wide in a window of %d", m.cw(), w)
+	}
+	for i, line := range strings.Split(m.View(), "\n") {
+		if lipgloss.Width(line) != w {
+			t.Fatalf("line %d is %d wide, want %d", i, lipgloss.Width(line), w)
+		}
+	}
+	if rule := strings.Repeat("─", w-4); !strings.Contains(ansi.Strip(m.View()), rule) {
+		t.Error("the rule under the head does not span the window")
+	}
+
+	// The same row of the tree: cut in a narrow window, whole in a wide one.
+	long := "довідка (2).pdf"
+	narrow := at(start(t, Options{}), 70, "1")
+	if strings.Contains(ansi.Strip(narrow.View()), long) {
+		t.Fatal("the test needs a name that does not fit 70 columns")
+	}
+	wide := at(start(t, Options{}), w, "1")
+	if !strings.Contains(ansi.Strip(wide.View()), long) {
+		t.Error("the long name is cut although the window has room for it")
+	}
+
+	lines := m.para(m.tr.T("where.note"), m.th.Dim, m.cw())
+	if len(lines) < 2 {
+		t.Errorf("the note is one line of %d columns: it should wrap at %d", m.cw(), readable)
+	}
+	for _, line := range lines {
+		if lipgloss.Width(line) != m.cw() {
+			t.Errorf("a line of the note is %d wide, want %d so the background has no holes", lipgloss.Width(line), m.cw())
+		}
+		if text := strings.TrimRight(ansi.Strip(line), " "); textWidth(text) > readable {
+			t.Errorf("a line of the note runs to %d columns: %q", textWidth(text), text)
 		}
 	}
 }

@@ -106,10 +106,16 @@ func renderRow(bg lipgloss.TerminalColor, width int, cells []cell) string {
 // The interface needs at least this much room.
 const minW, minH = 40, 10
 
-// cw is the width of the content column.
+// cw is the width of the content column: the whole terminal but a margin
+// of two columns on each side. Lists and tables use all of it, so a wide
+// window shows long names and paths in full.
 func (m Model) cw() int {
-	return min(m.w-4, 100)
+	return m.w - 4
 }
+
+// readable is the longest line of running text: beyond it the eye loses
+// the next line. Paragraphs wrap here however wide the window is.
+const readable = 100
 
 func (m Model) line(cells ...cell) string { return renderRow(m.th.Bg, m.cw(), cells) }
 func (m Model) sel(cells ...cell) string  { return renderRow(m.th.Panel, m.cw(), cells) }
@@ -138,10 +144,11 @@ func (m Model) pick(active bool, label string, rest ...cell) string {
 	return m.line(cells...)
 }
 
-// para wraps text to the given width.
+// para lays text out as lines that are width columns wide. The text itself
+// wraps at the readable length when the window is wider than that.
 func (m Model) para(text string, fg lipgloss.TerminalColor, width int) []string {
 	style := lipgloss.NewStyle().Foreground(fg).Background(m.th.Bg).Width(width)
-	return strings.Split(style.Render(strings.Join(wrap(text, width), "\n")), "\n")
+	return strings.Split(style.Render(strings.Join(wrap(text, min(width, readable)), "\n")), "\n")
 }
 
 // Marks that may not start a line, and brackets that may not end one, in

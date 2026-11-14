@@ -11,13 +11,11 @@ Syncer reads Google Drive as a Service Account: a robot account with its own ema
 
 ## Use the key
 
-The program does not import the key yet. For now it is used only by the test that checks the connection:
-
 ```
-SYNCER_TEST_KEY=/path/to/key.json go test ./internal/drive -run TestRealList -v
+./syncer key /path/to/key.json
 ```
 
-It prints how many items the account sees.
+The program checks that the file is a Service Account key, copies it to its own folder with access for you only, and prints the email to share the folder with. That folder is `~/.config/syncer` on macOS and Linux, `%AppData%\syncer` on Windows; `SYNCER_HOME` overrides it. The downloaded file is no longer needed after the import.
 
 ## Keep it safe
 
@@ -39,13 +37,11 @@ Syncer читає Google Drive від імені Service Account — служб�
 
 ## Як підключити ключ
 
-Програма ще не вміє імпортувати ключ. Поки що його використовує лише тест, який перевіряє з'єднання:
-
 ```
-SYNCER_TEST_KEY=/шлях/до/key.json go test ./internal/drive -run TestRealList -v
+./syncer key /шлях/до/key.json
 ```
 
-Він друкує, скільки елементів бачить акаунт.
+Програма перевіряє, що файл є ключем Service Account, копіює його у власну папку з доступом лише для вас і друкує email, на який треба розшарити папку. Ця папка — `~/.config/syncer` у macOS і Linux, `%AppData%\syncer` у Windows; `SYNCER_HOME` її змінює. Завантажений файл після імпорту більше не потрібен.
 
 ## Безпека
 

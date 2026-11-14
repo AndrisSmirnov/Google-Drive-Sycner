@@ -3,12 +3,27 @@
 Needs Go 1.26 or newer.
 
 ```
-go run ./cmd/syncer                     # the menu
 go build -o syncer ./cmd/syncer         # a binary
 go test ./...                           # the tests
 ```
 
-Right now this is an interface prototype: it runs on demo data and touches neither Google Drive nor the disk.
+## Sync without the menu
+
+```
+./syncer key path/to/key.json           # once: import the Service Account key
+./syncer sync -dest /Volumes/USB/backup # copy what is shared with the account
+./syncer sync                           # later: the folder is remembered
+```
+
+A sync prints what it is going to do, the progress, and a summary. Files deleted on Drive go into the trash (`.bin` in the destination). `Ctrl+C` stops it; the same command goes on from where it stopped. Exit code: 0 all copied, 1 some files failed or the sync was stopped, 2 it could not start.
+
+## The menu
+
+```
+./syncer                                # or: go run ./cmd/syncer
+```
+
+The menu is still an interface prototype: it runs on demo data and touches neither Google Drive nor the disk.
 
 | Flag | Values |
 |---|---|
@@ -29,12 +44,27 @@ Keys: `↑↓` move · `Enter` open · digits jump to an item · `Space` select 
 Потрібен Go 1.26 або новіший.
 
 ```
-go run ./cmd/syncer                     # меню
 go build -o syncer ./cmd/syncer         # бінарник
 go test ./...                           # тести
 ```
 
-Зараз це прототип інтерфейсу: він працює на демо-даних і не торкається ні Google Drive, ні диска.
+## Синхронізація без меню
+
+```
+./syncer key шлях/до/key.json           # один раз: імпортувати ключ Service Account
+./syncer sync -dest /Volumes/USB/backup # скопіювати те, що розшарено на акаунт
+./syncer sync                           # далі: папку запам'ятовано
+```
+
+Синхронізація друкує, що збирається робити, прогрес і підсумок. Файли, видалені на Drive, ідуть у кошик (`.bin` у папці призначення). `Ctrl+C` зупиняє; та сама команда продовжує з місця зупинки. Код завершення: 0 — усе скопійовано, 1 — частина файлів не вдалася або синхронізацію зупинено, 2 — не змогла почати.
+
+## Меню
+
+```
+./syncer                                # або: go run ./cmd/syncer
+```
+
+Меню поки що є прототипом інтерфейсу: воно працює на демо-даних і не торкається ні Google Drive, ні диска.
 
 | Прапорець | Значення |
 |---|---|

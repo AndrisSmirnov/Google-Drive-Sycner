@@ -4,7 +4,8 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 
 | Package | Job |
 |---|---|
-| `cmd/syncer` | Flags, starts the interface |
+| `cmd/syncer` | Passes the arguments on |
+| `internal/cli` | The commands: the menu, `sync`, `key`, `version`. Prints the plan, the progress and the summary of a sync |
 | `internal/tui` | The screens. `app.go` routes between them, `ui.go` draws rows, one file per screen |
 | `internal/config` | Settings (on the drive first, then on the computer) and the Service Account key, with an encrypted copy for the drive |
 | `internal/demo` | Made-up Drive data the interface runs on |
@@ -39,7 +40,8 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 
 | Пакет | Справа |
 |---|---|
-| `cmd/syncer` | Прапорці, запуск інтерфейсу |
+| `cmd/syncer` | Передає аргументи далі |
+| `internal/cli` | Команди: меню, `sync`, `key`, `version`. Друкує план, прогрес і підсумок синхронізації |
 | `internal/tui` | Екрани. `app.go` перемикає між ними, `ui.go` малює рядки, на кожен екран свій файл |
 | `internal/config` | Налаштування (спершу з носія, потім із комп'ютера) і ключ Service Account із зашифрованою копією для носія |
 | `internal/demo` | Вигадані дані Drive, на яких працює інтерфейс |

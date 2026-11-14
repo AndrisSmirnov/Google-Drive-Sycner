@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -140,7 +141,78 @@ func (m Model) pick(active bool, label string, rest ...cell) string {
 // para wraps text to the given width.
 func (m Model) para(text string, fg lipgloss.TerminalColor, width int) []string {
 	style := lipgloss.NewStyle().Foreground(fg).Background(m.th.Bg).Width(width)
-	return strings.Split(style.Render(text), "\n")
+	return strings.Split(style.Render(strings.Join(wrap(text, width), "\n")), "\n")
+}
+
+// Marks that may not start a line, and brackets that may not end one, in
+// Chinese and Japanese text.
+const (
+	noLineStart = "、。，．：；！？）」』】〉》…ー々ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ"
+	noLineEnd   = "（「『【〈《“‘"
+)
+
+// wrap breaks text into lines of at most width columns. Words separated by
+// spaces stay whole. Chinese and Japanese are written without spaces:
+// there a line may break between any two characters, except that it does
+// not start with a closing mark or a small kana and does not end with an
+// opening bracket. A word longer than a line is cut where the line ends.
+func wrap(text string, width int) []string {
+	width = max(width, 2)
+	var lines []string
+	for _, paragraph := range strings.Split(text, "\n") {
+		line, lineW := "", 0
+		for _, piece := range pieces(paragraph) {
+			w := textWidth(piece)
+			if lineW > 0 && lineW+w > width {
+				lines = append(lines, line)
+				line, lineW = "", 0
+			}
+			if lineW == 0 {
+				piece = strings.TrimLeft(piece, " ")
+				w = textWidth(piece)
+			}
+			for w > width {
+				head := ansi.Truncate(piece, width, "")
+				lines = append(lines, head)
+				piece = piece[len(head):]
+				w = textWidth(piece)
+			}
+			line, lineW = line+piece, lineW+w
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// pieces cuts a paragraph into the parts a line may not break inside. The
+// spaces before a word belong to its piece.
+func pieces(text string) []string {
+	var out []string
+	var prev rune
+	start := 0
+	for i, r := range text {
+		wide := ansi.StringWidth(string(r)) > 1
+		wasWide := prev != 0 && ansi.StringWidth(string(prev)) > 1
+		var breaks bool
+		switch {
+		case i == 0 || prev == ' ':
+		case r == ' ':
+			breaks = true
+		case strings.ContainsRune(noLineStart, r) || strings.ContainsRune(noLineEnd, prev):
+		case wide:
+			breaks = true
+		case wasWide:
+			// A Latin word or a number after Chinese or Japanese text;
+			// a narrow mark such as ":" stays with what it follows.
+			breaks = unicode.IsLetter(r) || unicode.IsDigit(r)
+		}
+		if breaks {
+			out = append(out, text[start:i])
+			start = i
+		}
+		prev = r
+	}
+	return append(out, text[start:])
 }
 
 // box draws a rounded border around lines that are cw()-4 wide.

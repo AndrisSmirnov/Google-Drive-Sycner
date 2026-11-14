@@ -1266,3 +1266,41 @@ func TestFrameDoesNotFollowTheLocale(t *testing.T) {
 	// The tree, both lists, the settings with the themes, and a sync.
 	press(t, m, "1", "esc", "3", "esc", "4", "esc", "5", "4", "esc", "1", "esc", "esc", "2", "enter")
 }
+
+func TestWrap(t *testing.T) {
+	cases := []struct {
+		text  string
+		width int
+		want  []string
+	}{
+		// Words stay whole, and the space at a break is dropped.
+		{"one two three", 7, []string{"one two", "three"}},
+		{"one two three", 8, []string{"one two", "three"}},
+		{"один два  три", 9, []string{"один два", "три"}},
+		// A word longer than a line is cut where the line ends.
+		{"/Volumes/USB/backup", 8, []string{"/Volumes", "/USB/bac", "kup"}},
+		{"", 10, []string{""}},
+		{"a\n\nb", 10, []string{"a", "", "b"}},
+		// Japanese breaks between any two characters…
+		{"ファイルをコピー", 8, []string{"ファイル", "をコピー"}},
+		// …but not before a closing mark or a small kana,
+		{"コピーします。次へ", 12, []string{"コピーしま", "す。次へ"}},
+		{"フォルダ自体", 4, []string{"フォ", "ルダ", "自体"}},
+		// and not after an opening bracket.
+		{"これは「閲覧者」です", 6, []string{"これは", "「閲覧", "者」で", "す"}},
+		// A Latin word inside stays whole; a mark stays with its word.
+		{"キーを Drive に保存:", 10, []string{"キーを", "Drive に保", "存:"}},
+		{"共享给邮箱：abc", 10, []string{"共享给邮", "箱：abc"}},
+	}
+	for _, c := range cases {
+		got := wrap(c.text, c.width)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("wrap(%q, %d) = %q, want %q", c.text, c.width, got, c.want)
+		}
+		for _, line := range got {
+			if textWidth(line) > c.width {
+				t.Errorf("wrap(%q, %d): line %q is too wide", c.text, c.width, line)
+			}
+		}
+	}
+}

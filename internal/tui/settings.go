@@ -9,7 +9,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 
 	"syncer-gdrive/internal/config"
 	"syncer-gdrive/internal/demo"
@@ -65,7 +64,7 @@ func (m Model) viewSettings() ([]string, string) {
 		{tr.T("set.theme"), m.themeName()},
 	}
 	for i, r := range rows {
-		label := strconv.Itoa(i+1) + "  " + r.label + strings.Repeat(" ", max(24-len([]rune(r.label)), 1))
+		label := strconv.Itoa(i+1) + "  " + r.label + strings.Repeat(" ", max(24-textWidth(r.label), 1))
 		out = append(out, m.pick(i == m.set.idx, label, t(r.value, th.Dim)))
 	}
 	return out, m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.open"),
@@ -280,7 +279,7 @@ func (m Model) viewTheme() ([]string, string) {
 		p := s.Variant(th.IsDark)
 		bg := lipgloss.Color(p.Bg)
 		label := s.Key + "  " + radio(i == m.scheme) + s.Name +
-			strings.Repeat(" ", max(16-runewidth.StringWidth(s.Name), 2))
+			strings.Repeat(" ", max(16-textWidth(s.Name), 2))
 		sample := []cell{t(" Aa ", lipgloss.Color(p.Fg)).on(bg)}
 		for _, c := range []string{p.Accent, p.Second, p.Ok, p.Warn, p.Err} {
 			sample = append(sample, t("● ", lipgloss.Color(c)).on(bg))

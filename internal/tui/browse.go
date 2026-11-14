@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 
@@ -543,10 +542,10 @@ func (m Model) viewList(s browser) []string {
 
 	// The last column holds the file count of a folder and, in the trash,
 	// the reason a file is there. It is as wide as its longest text.
-	noteW := runewidth.StringWidth(tr.N("n.files", files))
+	noteW := textWidth(tr.N("n.files", files))
 	if s.kind == "trash" {
 		for _, key := range []string{"col.reason", "reason.drive", "reason.local", "reason.unselected"} {
-			noteW = max(noteW, runewidth.StringWidth(tr.T(key)))
+			noteW = max(noteW, textWidth(tr.T(key)))
 		}
 	}
 	noteW += 2
@@ -579,9 +578,9 @@ func (m Model) viewList(s browser) []string {
 	// The totals give way when the title and the controls leave no room for them.
 	title := tr.T(s.kind + ".title")
 	totals := " · " + tr.N("n.files", files) + " · " + format.Size(bytes)
-	taken := runewidth.StringWidth(title+totals) + 2
+	taken := textWidth(title+totals) + 2
 	for _, c := range controls {
-		taken += runewidth.StringWidth(c.text)
+		taken += textWidth(c.text)
 	}
 	header := []cell{t(title, th.Accent).b()}
 	if taken <= m.cw() {

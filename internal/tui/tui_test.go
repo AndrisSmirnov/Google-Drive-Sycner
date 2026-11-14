@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
 
 	"syncer-gdrive/internal/demo"
@@ -1247,4 +1248,21 @@ func TestPaintedBackgroundHasNoHoles(t *testing.T) {
 			check(m, "tick")
 		}
 	}
+}
+
+// Under a Japanese, Chinese or Korean system locale go-runewidth counts
+// the "ambiguous" characters, such as ─, … and ✓, as two columns, while
+// terminals and Lip Gloss draw them in one. The frame must not follow the
+// locale: with that measure every row came out too short.
+func TestFrameDoesNotFollowTheLocale(t *testing.T) {
+	was := runewidth.DefaultCondition.EastAsianWidth
+	runewidth.DefaultCondition.EastAsianWidth = true
+	t.Cleanup(func() { runewidth.DefaultCondition.EastAsianWidth = was })
+	if runewidth.StringWidth("─") != 2 {
+		t.Fatal("the test does not imitate an East Asian locale")
+	}
+	m := start(t, Options{})
+	checkFrame(t, m, "start")
+	// The tree, both lists, the settings with the themes, and a sync.
+	press(t, m, "1", "esc", "3", "esc", "4", "esc", "5", "4", "esc", "1", "esc", "esc", "2", "enter")
 }

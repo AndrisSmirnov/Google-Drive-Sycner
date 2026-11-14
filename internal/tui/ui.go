@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // cell is one styled piece of a row.
@@ -18,6 +18,17 @@ type cell struct {
 }
 
 func t(text string, fg lipgloss.TerminalColor) cell { return cell{text: text, fg: fg} }
+
+// textWidth is how many columns a text takes in the terminal: two for a
+// wide character such as 日, one for the rest. It is the measure Lip Gloss
+// wraps and draws borders with, so rows and paragraphs always agree. It
+// does not look at the locale of the system: a measure that does counts
+// ─, … and ✓ as two columns under a Japanese, Chinese or Korean locale,
+// and every row comes out too short there.
+func textWidth(s string) int { return ansi.StringWidth(s) }
+
+// cut shortens a text to at most width columns, ending it with "…".
+func cut(s string, width int) string { return ansi.Truncate(s, width, "…") }
 
 func (c cell) b() cell                           { c.bold = true; return c }
 func (c cell) w(n int) cell                      { c.width = n; return c }
@@ -34,7 +45,7 @@ func renderRow(bg lipgloss.TerminalColor, width int, cells []cell) string {
 		case c.width > 0:
 			taken += c.width
 		case c.width == 0:
-			w := runewidth.StringWidth(c.text)
+			w := textWidth(c.text)
 			taken += w
 			if w > longest {
 				longest, shrink = w, i
@@ -53,7 +64,7 @@ func renderRow(bg lipgloss.TerminalColor, width int, cells []cell) string {
 	left := width
 	for i, c := range cells {
 		text := c.text
-		textW := runewidth.StringWidth(text)
+		textW := textWidth(text)
 		cellW := c.width
 		switch {
 		case i == shrink:
@@ -68,8 +79,8 @@ func renderRow(bg lipgloss.TerminalColor, width int, cells []cell) string {
 			continue
 		}
 		if textW > cellW {
-			text = runewidth.Truncate(text, cellW, "…")
-			textW = runewidth.StringWidth(text)
+			text = cut(text, cellW)
+			textW = textWidth(text)
 		}
 		pad := strings.Repeat(" ", cellW-textW)
 		if c.right {
@@ -170,7 +181,7 @@ func (m Model) buttons(active int, labels ...string) string {
 func (m Model) hints(pairs ...string) string {
 	width := func() (w int) {
 		for i := 0; i+1 < len(pairs); i += 2 {
-			w += runewidth.StringWidth(pairs[i]) + 1 + runewidth.StringWidth(pairs[i+1])
+			w += textWidth(pairs[i]) + 1 + textWidth(pairs[i+1])
 		}
 		return w + 3*(len(pairs)/2-1)
 	}

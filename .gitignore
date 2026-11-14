@@ -1,0 +1,14 @@
+# Working notes
+.dev/**
+
+# macOS service files
+.DS_Store
+
+# Built binaries
+/syncer
+/dist/
+
+# Service Account keys never belong in the repository.
+# Google names them <project>-<12 characters>.json.
+*-????????????.json
+/keys/

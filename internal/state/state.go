@@ -244,6 +244,13 @@ func (s *Store) SetCopied(id string, c Copy) error {
 	return nil
 }
 
+// SetPath records where an item now lies on the drive, after its copy was
+// moved there.
+func (s *Store) SetPath(id, path string) error {
+	_, err := s.db.Exec("UPDATE items SET path = ? WHERE id = ?", path, id)
+	return err
+}
+
 // ClearCopied records that a file is no longer on the drive as a copy: it
 // went to the trash or onto the SKIP list, or was deleted.
 func (s *Store) ClearCopied(ids ...string) error {

@@ -14,6 +14,7 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 | `internal/theme` | Colour schemes |
 | `internal/volume` | The volume a copy goes to: free space, file system, connected drives. One file per operating system |
 | `internal/i18n` | Interface texts, `locales/<lang>.json` |
+| `internal/engine` | The sync: look at Drive (`Refresh`), decide (`Plan`), act (`Run`). Places every item on the drive, applies the selection rules, tells what happened to each copy |
 | `internal/filekind` | Kind of a file by its extension |
 | `internal/format` | Sizes and numbers as text |
 
@@ -47,6 +48,7 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 | `internal/theme` | Колірні схеми |
 | `internal/volume` | Том, на який іде копія: вільне місце, файлова система, підключені носії. На кожну операційну систему свій файл |
 | `internal/i18n` | Тексти інтерфейсу, `locales/<мова>.json` |
+| `internal/engine` | Синхронізація: подивитись на Drive (`Refresh`), вирішити (`Plan`), виконати (`Run`). Дає кожному елементу місце на носії, застосовує правила вибору, визначає, що сталося з кожною копією |
 | `internal/filekind` | Тип файла за розширенням |
 | `internal/format` | Розміри й числа як текст |
 

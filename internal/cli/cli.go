@@ -66,10 +66,10 @@ func menu(args []string, stderr io.Writer) int {
 	var opts tui.Options
 	flags := flag.NewFlagSet("syncer", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	flags.BoolVar(&opts.FirstRun, "first-run", false, "start with the first-run wizard")
-	flags.StringVar(&opts.Demo, "demo", "", "show a problem state: no-drive or lost-access")
-	flags.StringVar(&opts.Lang, "lang", "uk", "interface language: uk or en")
-	flags.StringVar(&opts.Theme, "theme", "auto", "light or dark variant: auto, dark or light")
+	demoMode := flags.String("demo", "", "run on made-up data instead of Google Drive: data, no-drive or lost-access")
+	flags.BoolVar(&opts.FirstRun, "first-run", false, "with -demo: start with the first-run steps")
+	flags.StringVar(&opts.Lang, "lang", "", "interface language: uk or en")
+	flags.StringVar(&opts.Theme, "theme", "", "light or dark variant: auto, dark or light")
 	var ids string
 	for i, s := range theme.Schemes {
 		if i > 0 {
@@ -85,7 +85,20 @@ func menu(args []string, stderr io.Writer) int {
 	if err := flags.Parse(args); err != nil {
 		return ExitNotStarted
 	}
-	model, err := tui.New(opts)
+	var model tui.Model
+	var err error
+	if *demoMode != "" || opts.FirstRun {
+		// Made-up data: nothing reads Drive or writes to a drive.
+		if *demoMode != "data" {
+			opts.Demo = *demoMode
+		}
+		model, err = tui.New(opts)
+	} else {
+		var home string
+		if home, err = config.Home(); err == nil {
+			model, err = tui.NewLive(opts, tui.LiveOptions{Home: home, Connect: connect, Volumes: connected})
+		}
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "syncer:", err)
 		return ExitNotStarted

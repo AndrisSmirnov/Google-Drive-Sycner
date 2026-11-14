@@ -1,7 +1,11 @@
 package tui
 
 import (
+	"path/filepath"
+
 	tea "github.com/charmbracelet/bubbletea"
+
+	"syncer-gdrive/internal/demo"
 )
 
 // The trash and the SKIP list are the same kind of file list (browse.go);
@@ -24,11 +28,11 @@ func (m Model) keySkip(key string) (tea.Model, tea.Cmd) {
 	case "r":
 		if ok {
 			m.flash = m.tr.T("skip.removed", m.describe(*s, row))
-			s.remove(row.targets())
+			m.act("unskip", s, row)
 		}
 	case " ":
 		if ok && row.item >= 0 {
-			m.togglePreview(s.items[row.item])
+			m.togglePreview(s.items[row.item], m.fileOf(s.items[row.item].Path))
 		}
 	case "esc":
 		m.pv.stop()
@@ -36,6 +40,31 @@ func (m Model) keySkip(key string) (tea.Model, tea.Cmd) {
 	}
 	s.clamp()
 	return m, nil
+}
+
+// act takes the files of a row out of a list. On real data it first does
+// to the files what was asked; if that fails, the message says so.
+func (m *Model) act(action string, s *browser, row listRow) {
+	if m.lv == nil {
+		s.remove(row.targets())
+		return
+	}
+	var entries []demo.Entry
+	for _, i := range row.targets() {
+		entries = append(entries, s.items[i])
+	}
+	if err := m.keptAct(action, entries); err != nil {
+		m.flash = err.Error()
+	}
+}
+
+// fileOf is where a file of the destination lies on this computer; empty
+// with demo data, which has no files.
+func (m Model) fileOf(rel string) string {
+	if m.lv == nil || rel == "" {
+		return ""
+	}
+	return filepath.Join(m.lv.dest, filepath.FromSlash(rel))
 }
 
 // --- trash ---
@@ -51,7 +80,7 @@ func (m Model) keyTrash(key string) (tea.Model, tea.Cmd) {
 	used, confirmed := s.key(key)
 	if confirmed {
 		m.flash = m.tr.T("trash.deleted", m.describe(*s, s.doomed))
-		s.remove(s.doomed.targets())
+		m.act("delete", s, s.doomed)
 		s.clamp()
 	}
 	if used {
@@ -62,7 +91,7 @@ func (m Model) keyTrash(key string) (tea.Model, tea.Cmd) {
 	case "enter":
 		if ok {
 			m.flash = m.tr.T("trash.restored", m.describe(*s, row))
-			s.remove(row.targets())
+			m.act("restore", s, row)
 		}
 	case "d":
 		// Deleting is for good, so it asks first and says what goes.
@@ -72,7 +101,7 @@ func (m Model) keyTrash(key string) (tea.Model, tea.Cmd) {
 		}
 	case " ":
 		if ok && row.item >= 0 {
-			m.togglePreview(s.items[row.item])
+			m.togglePreview(s.items[row.item], m.fileOf(s.items[row.item].Stored))
 		}
 	case "esc":
 		m.pv.stop()

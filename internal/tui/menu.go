@@ -5,7 +5,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"syncer-gdrive/internal/demo"
 	"syncer-gdrive/internal/format"
 )
 
@@ -38,15 +37,19 @@ func (m Model) viewMenu() ([]string, string) {
 	dest := m.destination()
 
 	drive := t("● "+tr.T("status.connected"), th.Ok)
-	if m.opts.Demo == "no-drive" {
+	if dest.Missing {
 		drive = t("○ "+tr.T("status.disconnected"), th.Err)
+	}
+	account := m.account()
+	if account == "" {
+		account = tr.T("acc.none")
 	}
 	label := func(key string) cell { return t(tr.T(key), th.Dim).w(12) }
 
 	out := []string{
 		m.line(t("SYNCER", th.Accent).b(), t("  "+tr.T("app.tagline"), th.Dim), m.gap(), t(tr.T("app.version"), th.Dim)),
 		m.rule(),
-		m.line(label("status.account"), t(demo.Account, th.Fg)),
+		m.line(label("status.account"), t(account, th.Fg)),
 		m.line(label("status.drive"), t(dest.Path+"  ", th.Fg), drive),
 		m.line(label("status.free"), t(tr.T("status.free.val", format.Size(dest.Free), format.Size(dest.Capacity)), th.Fg)),
 		m.line(label("status.last"), t(m.lastSync()+" · "+tr.N("n.files", files)+" · "+format.Size(bytes), th.Fg)),
@@ -80,15 +83,27 @@ func (m Model) openMenu() (tea.Model, tea.Cmd) {
 	case quitItem:
 		return m, tea.Quit
 	case scrPreflight:
-		m.run = m.newRun()
 		if m.askDest {
-			m.where = m.dest
-			target = scrWhere
+			return m.askWhere(whereSync), nil
 		}
+		if m.lv != nil {
+			return m.planSync()
+		}
+		m.run = m.newRun()
 	case scrTree:
+		if m.lv != nil {
+			return m.listThenTree()
+		}
 		m.tree.remember()
 	case scrSkip:
+		if m.lv != nil {
+			m.reload()
+		}
 		m.flash = m.tr.T("skip.note")
+	case scrTrash:
+		if m.lv != nil {
+			m.reload()
+		}
 	case scrSettings:
 		m.set = settingsState{}
 	}

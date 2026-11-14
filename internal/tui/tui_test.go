@@ -22,14 +22,20 @@ const testW, testH = 100, 30
 // previews records what the tests asked to preview.
 var previews []string
 
-// Tests never open a real preview window.
+// Tests never open a real preview window and never touch the clipboard.
 func init() {
-	openPreview = func(name, text string) (*viewer, error) {
+	stub := func(name string) (*viewer, error) {
 		previews = append(previews, name)
 		open := true
 		return &viewer{close: func() { open = false }, running: func() bool { return open }}, nil
 	}
+	openPreview = func(name, text string) (*viewer, error) { return stub(name) }
+	openFile = func(file string) (*viewer, error) { return stub(file) }
+	copyToClipboard = func(text string) { copied = text }
 }
+
+// copied is what the tests put on the clipboard.
+var copied string
 
 func keyMsg(k string) tea.KeyMsg {
 	switch k {
@@ -47,6 +53,10 @@ func keyMsg(k string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyRight}
 	case " ":
 		return tea.KeyMsg{Type: tea.KeySpace}
+	case "backspace":
+		return tea.KeyMsg{Type: tea.KeyBackspace}
+	case "ctrl+u":
+		return tea.KeyMsg{Type: tea.KeyCtrlU}
 	default:
 		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 	}

@@ -21,17 +21,20 @@ A sync prints what it is going to do, the progress, and a summary. Files deleted
 
 ```
 ./syncer                                # or: go run ./cmd/syncer
+./syncer -demo data                     # made-up data: reads no Drive, writes nothing
 ```
 
-The menu is still an interface prototype: it runs on demo data and touches neither Google Drive nor the disk.
+On a first start the menu asks for the language, the key file, and the folder to copy to. After that it remembers them, on the computer and on the drive.
 
 | Flag | Values |
 |---|---|
 | `-lang` | `uk`, `en` |
 | `-palette` | `terminal`, `far`, `ms-dos`, `word`, `matrix`, `dark-plus`, `gruvbox`, `nord`, `ice`, `violet`, `github` |
 | `-theme` | `auto`, `dark`, `light` |
-| `-first-run` | starts with the first-run wizard |
-| `-demo` | `no-drive`, `lost-access` — problem states |
+| `-demo` | `data`, or a problem state: `no-drive`, `lost-access` |
+| `-first-run` | with `-demo`: start with the first-run steps |
+
+Without a flag the language, palette and variant come from the settings.
 
 Menu: 1 choose files and folders → 2 sync → 3 SKIP files → 4 trash → 5 settings.
 
@@ -62,17 +65,20 @@ go test ./...                           # тести
 
 ```
 ./syncer                                # або: go run ./cmd/syncer
+./syncer -demo data                     # вигадані дані: не читає Drive, нічого не пише
 ```
 
-Меню поки що є прототипом інтерфейсу: воно працює на демо-даних і не торкається ні Google Drive, ні диска.
+Під час першого запуску меню питає мову, файл ключа і папку, куди копіювати. Далі воно їх пам'ятає — на комп'ютері й на носії.
 
 | Прапорець | Значення |
 |---|---|
 | `-lang` | `uk`, `en` |
 | `-palette` | `terminal`, `far`, `ms-dos`, `word`, `matrix`, `dark-plus`, `gruvbox`, `nord`, `ice`, `violet`, `github` |
 | `-theme` | `auto`, `dark`, `light` |
-| `-first-run` | починає з майстра першого запуску |
-| `-demo` | `no-drive`, `lost-access` — проблемні стани |
+| `-demo` | `data` або проблемний стан: `no-drive`, `lost-access` |
+| `-first-run` | разом із `-demo`: почати з кроків першого запуску |
+
+Без прапорця мова, палітра й варіант беруться з налаштувань.
 
 Меню: 1 вибір файлів і папок → 2 синхронізація → 3 SKIP-файли → 4 кошик → 5 налаштування.
 

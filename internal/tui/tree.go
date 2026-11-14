@@ -163,7 +163,12 @@ func (s treeState) clashes() map[*demo.Node]string {
 			case n.Dir:
 				walk(n.Children)
 			case n.Checked:
-				key := strings.ToLower(n.Name)
+				// What decides is the name the file asks for on the drive.
+				asks := n.Name
+				if _, ext, ok := strings.Cut(n.Export, "→ "); ok {
+					asks += ext
+				}
+				key := names.Key(names.Clean(asks))
 				same[key] = append(same[key], n)
 			}
 		}
@@ -173,7 +178,11 @@ func (s treeState) clashes() map[*demo.Node]string {
 			}
 			sort.SliceStable(group, func(a, b int) bool { return group[a].Modified < group[b].Modified })
 			for i, n := range group {
-				out[n] = names.Numbered(n.Name, i+1)
+				// Real data knows the name already; the demo works it out.
+				out[n] = n.Local
+				if n.Local == "" {
+					out[n] = names.Numbered(n.Name, i+1)
+				}
 			}
 		}
 	}
@@ -308,6 +317,10 @@ func (m Model) viewTree() ([]string, string) {
 
 func (m Model) keyTree(key string) (tea.Model, tea.Cmd) {
 	rows := m.tree.rows()
+	if len(rows) == 0 {
+		m.screen = scrMenu
+		return m, nil
+	}
 	cur := rows[m.tree.cursor]
 	switch key {
 	case "up", "k", "down", "j":
@@ -331,6 +344,12 @@ func (m Model) keyTree(key string) (tea.Model, tea.Cmd) {
 			cur.node.Open = false
 		}
 	case "enter":
+		if m.lv != nil {
+			if err := m.saveSelection(); err != nil {
+				m.flash = err.Error()
+				return m, nil
+			}
+		}
 		files, bytes := m.tree.selected()
 		m.flash = m.tr.T("tree.saved", m.tr.N("n.files", files), format.Size(bytes))
 		m.screen = scrMenu

@@ -11,6 +11,8 @@ Syncer reads Google Drive as a Service Account: a robot account with its own ema
 
 ## Use the key
 
+Start `./syncer`: the first-run steps ask for the key file. Or from the command line:
+
 ```
 ./syncer key /path/to/key.json
 ```
@@ -21,6 +23,7 @@ The program checks that the file is a Service Account key, copies it to its own 
 
 - The key opens everything shared with the account. Keep it outside the repository; `.gitignore` already rejects such files.
 - If the key leaks, delete it in Google Cloud Console → the account → Keys. It stops working at once.
+- To use the drive on another computer without setting anything up, keep a copy of the key on the drive: Settings → Service Account → "Keep the key on the drive under a password". The copy is encrypted; the program asks for the password when it finds no key on the computer.
 
 ==================================================
 
@@ -37,6 +40,8 @@ Syncer читає Google Drive від імені Service Account — служб�
 
 ## Як підключити ключ
 
+Запустіть `./syncer`: кроки першого запуску спитають файл ключа. Або з командного рядка:
+
 ```
 ./syncer key /шлях/до/key.json
 ```
@@ -47,3 +52,4 @@ Syncer читає Google Drive від імені Service Account — служб�
 
 - Ключ відкриває все, що розшарено на акаунт. Тримайте його поза репозиторієм; `.gitignore` уже відхиляє такі файли.
 - Якщо ключ потрапив не туди — видаліть його в Google Cloud Console → акаунт → Keys. Він перестане працювати одразу.
+- Щоб користуватися носієм на іншому комп'ютері без налаштування, тримайте копію ключа на носії: Налаштування → Service Account → «Зберегти ключ на носії під паролем». Копія зашифрована; програма спитає пароль, коли не знайде ключа на комп'ютері.

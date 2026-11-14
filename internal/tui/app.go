@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,6 +72,14 @@ type Model struct {
 	set     settingsState
 	wiz     int
 	pv      *previewState
+
+	// lv is the work on real data; nil when the interface runs on demo data.
+	lv       *live
+	whereFor int     // what the destination question was asked for
+	prompt   *prompt // a question answered by typing, shown instead of the screen
+	busy     string  // what the program is waiting for; keys wait too
+	cancel   func()  // stops what busy waits for
+	failure  string  // an error to show before going back to the menu
 }
 
 // New builds the model. It asks the terminal for its background colour, so
@@ -125,7 +134,60 @@ func (m *Model) applyTheme() {
 }
 
 // destination is the folder the copy goes to.
-func (m Model) destination() demo.Destination { return demo.Destinations[m.dest] }
+func (m Model) destination() demo.Destination {
+	if m.lv != nil {
+		return m.lv.info
+	}
+	d := demo.Destinations[m.dest]
+	d.Missing = m.opts.Demo == "no-drive"
+	return d
+}
+
+// dests are the folders the question "where to sync" offers.
+func (m Model) dests() []demo.Destination {
+	if m.lv != nil {
+		return m.lv.dests
+	}
+	out := slices.Clone(demo.Destinations)
+	for i := range out {
+		out[i].Missing = m.opts.Demo == "no-drive"
+	}
+	return out
+}
+
+// account is the email of the Service Account, empty if there is no key.
+func (m Model) account() string {
+	switch {
+	case m.lv == nil:
+		return demo.Account
+	case m.lv.key == nil:
+		return ""
+	}
+	return m.lv.key.Email
+}
+
+// langs lists the codes of the interface languages.
+func langs() []string {
+	var out []string
+	for _, l := range i18n.Langs {
+		out = append(out, l.Code)
+	}
+	return out
+}
+
+// Close releases what the interface holds outside the terminal: an open
+// preview and the state of the destination.
+func (m Model) Close() {
+	if m.pv != nil {
+		m.pv.stop()
+	}
+	if m.lv != nil {
+		if m.lv.stopRun != nil {
+			m.lv.stopRun()
+		}
+		m.lv.closeEngine()
+	}
+}
 
 // lastSync is when the destination was last synced, in words if never.
 func (m Model) lastSync() string {
@@ -158,10 +220,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.w, m.h = msg.Width, msg.Height
 	case tickMsg:
 		return m.onTick()
+	case listedMsg:
+		return m.onListed(msg)
+	case plannedMsg:
+		return m.onPlanned(msg)
+	case ranMsg:
+		return m.onRan(msg)
+	case accessMsg:
+		return m.onAccess(msg)
 	case tea.KeyMsg:
 		key := msg.String()
 		if key == "ctrl+c" {
 			return m, tea.Quit
+		}
+		switch {
+		case m.busy != "":
+			// The program is waiting for Drive: Esc gives up, the rest waits.
+			if key == "esc" && m.cancel != nil {
+				m.cancel()
+			}
+			return m, nil
+		case m.prompt != nil:
+			return m.keyPrompt(msg)
+		case m.failure != "":
+			if key == "enter" || key == "esc" {
+				m.failure = ""
+				if m.screen != scrWizard && m.screen != scrWhere {
+					m.screen = scrMenu
+				}
+			}
+			return m, nil
 		}
 		m.flash = ""
 		switch m.screen {
@@ -193,6 +281,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) body() ([]string, string) {
+	th, tr := m.th, m.tr
+	switch {
+	case m.busy != "":
+		return []string{m.blank(), m.line(t(" "+m.busy, th.Fg))}, m.hints("Esc", tr.T("hint.cancel"))
+	case m.prompt != nil:
+		return m.viewPrompt()
+	case m.failure != "":
+		out := append(m.head(tr.T("fail.title"), ""), m.note(th.Err, m.failure, tr.T("fail.note"))...)
+		return append(out, m.blank(), m.buttons(0, tr.T("pre.back"))), m.hints("Enter", tr.T("hint.confirm"))
+	}
 	switch m.screen {
 	case scrWhere:
 		return m.viewWhere()

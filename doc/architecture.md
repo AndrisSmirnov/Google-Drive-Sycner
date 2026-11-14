@@ -6,9 +6,9 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 |---|---|
 | `cmd/syncer` | Passes the arguments on |
 | `internal/cli` | The commands: the menu, `sync`, `key`, `version`. Prints the plan, the progress and the summary of a sync |
-| `internal/tui` | The screens. `app.go` routes between them, `ui.go` draws rows, one file per screen |
+| `internal/tui` | The screens. `app.go` routes between them, `ui.go` draws rows, one file per screen. `live.go` puts them on real data; without it they run on `demo` |
 | `internal/config` | Settings (on the drive first, then on the computer) and the Service Account key, with an encrypted copy for the drive |
-| `internal/demo` | Made-up Drive data the interface runs on |
+| `internal/demo` | Made-up Drive data for `-demo` and for the tests of the screens |
 | `internal/drive` | Read-only Google Drive client: sign-in with a Service Account key, listing, download that can be continued, export of Google documents. Standard library only |
 | `internal/names` | The name a Drive item gets on the drive: forbidden characters, same names in one folder, service files |
 | `internal/state` | What is known about one destination: Drive as last seen, copies, selection, SKIP, trash. A SQLite file in `<destination>/.sync-states/` |
@@ -20,6 +20,8 @@ One binary, `cmd/syncer`. Everything else lives in `internal/`, one package per 
 | `internal/format` | Sizes and numbers as text |
 
 How a screen works: `Model` holds the state, `Update` turns a key into a new state, `View` returns the frame. A frame is rows; a row is cells, each with its own text and background colour. Every frame is exactly as tall and wide as the terminal.
+
+Work that takes time — asking Drive, a sync — runs off the screen: a key starts it, the screen shows "busy", and the result comes back as a message (`listedMsg`, `plannedMsg`, `ranMsg`). A running sync is read on every tick from a `monitor`. Typing (a path, a password) goes through `prompt.go`.
 
 Where a change goes:
 
@@ -42,9 +44,9 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 |---|---|
 | `cmd/syncer` | Передає аргументи далі |
 | `internal/cli` | Команди: меню, `sync`, `key`, `version`. Друкує план, прогрес і підсумок синхронізації |
-| `internal/tui` | Екрани. `app.go` перемикає між ними, `ui.go` малює рядки, на кожен екран свій файл |
+| `internal/tui` | Екрани. `app.go` перемикає між ними, `ui.go` малює рядки, на кожен екран свій файл. `live.go` ставить їх на справжні дані; без нього вони працюють на `demo` |
 | `internal/config` | Налаштування (спершу з носія, потім із комп'ютера) і ключ Service Account із зашифрованою копією для носія |
-| `internal/demo` | Вигадані дані Drive, на яких працює інтерфейс |
+| `internal/demo` | Вигадані дані Drive для `-demo` і для тестів екранів |
 | `internal/drive` | Клієнт Google Drive лише на читання: вхід за ключем Service Account, перелік, завантаження з продовженням, експорт документів Google. Тільки стандартна бібліотека |
 | `internal/names` | Назва, яку елемент Drive отримує на носії: заборонені символи, однакові назви в одній папці, службові файли |
 | `internal/state` | Що відомо про одну папку призначення: Drive з останнього перегляду, копії, вибір, SKIP, кошик. Файл SQLite у `<призначення>/.sync-states/` |
@@ -56,6 +58,8 @@ Rules: nothing is chosen by a key that cycles blindly — options are shown as a
 | `internal/format` | Розміри й числа як текст |
 
 Як працює екран: `Model` тримає стан, `Update` перетворює клавішу на новий стан, `View` повертає кадр. Кадр — це рядки; рядок — це комірки, кожна зі своїм кольором тексту і тла. Кожен кадр рівно такої висоти й ширини, як термінал.
+
+Робота, яка потребує часу, — запит до Drive, синхронізація — іде поза екраном: клавіша її запускає, екран показує «зайнято», а результат повертається повідомленням (`listedMsg`, `plannedMsg`, `ranMsg`). Синхронізацію, що триває, екран читає на кожному такті з `monitor`. Введення тексту (шлях, пароль) іде через `prompt.go`.
 
 Куди йде зміна:
 

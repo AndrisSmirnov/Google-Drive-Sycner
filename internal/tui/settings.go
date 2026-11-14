@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
+	"syncer-gdrive/internal/config"
 	"syncer-gdrive/internal/demo"
 	"syncer-gdrive/internal/format"
 	"syncer-gdrive/internal/i18n"
@@ -50,8 +54,12 @@ func (m Model) sharedFolders() []string {
 func (m Model) viewSettings() ([]string, string) {
 	th, tr := m.th, m.tr
 	out := append(m.head(tr.T("set.title"), ""), m.blank())
+	account := m.account()
+	if account == "" {
+		account = tr.T("acc.none")
+	}
 	rows := []struct{ label, value string }{
-		{tr.T("set.account"), demo.Account},
+		{tr.T("set.account"), account},
 		{tr.T("set.dest"), m.destination().Path},
 		{tr.T("set.lang"), m.langName()},
 		{tr.T("set.theme"), m.themeName()},
@@ -82,21 +90,92 @@ func checkbox(on bool) string {
 
 var accountActions = []string{"acc.check", "acc.copy", "acc.replace", "acc.remove"}
 
+// accountRows are the actions of the Service Account screen. On real data
+// there is one more: keeping an encrypted copy of the key on the drive.
+func (m Model) accountRows() []string {
+	if m.lv == nil {
+		return accountActions
+	}
+	if m.lv.dest != "" && config.HasSealedKey(m.lv.dest) {
+		return append(slices.Clone(accountActions), "acc.unseal")
+	}
+	return append(slices.Clone(accountActions), "acc.seal")
+}
+
 func (m Model) viewAccount() ([]string, string) {
 	th, tr := m.th, m.tr
 	out := m.head(tr.T("set.account"), tr.T("set.title"))
 	label := func(key string) cell { return t(" "+tr.T(key), th.Dim).w(12) }
+	email, imported := m.account(), demo.KeyDate
+	if m.lv != nil {
+		imported = ""
+		if info, err := os.Stat(filepath.Join(m.lv.home, "account.json")); err == nil {
+			imported = day(info.ModTime())
+		}
+	}
+	key := t(tr.T("acc.key.val", imported), th.Fg)
+	switch {
+	case email == "":
+		email, key = "—", t(tr.T("acc.none"), th.Warn)
+	case imported == "":
+		key = t(tr.T("acc.key.drive"), th.Fg) // opened from the drive for this session
+	}
 	out = append(out,
-		m.line(label("acc.email"), t(demo.Account, th.Fg)),
-		m.line(label("acc.key"), t(tr.T("acc.key.val", demo.KeyDate), th.Fg)),
+		m.line(label("acc.email"), t(email, th.Fg)),
+		m.line(label("acc.key"), key),
 		m.line(label("acc.access"), t("✓ ", th.Ok), t(tr.T("acc.access.val", tr.N("n.folders", len(m.sharedFolders()))), th.Fg)),
 		m.blank(),
 	)
-	for i, key := range accountActions {
+	rows := m.accountRows()
+	for i, key := range rows {
 		out = append(out, m.pick(i == m.set.sub, strconv.Itoa(i+1)+"  "+tr.T(key)))
 	}
 	return out, m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.run"),
-		"1–"+strconv.Itoa(len(accountActions)), tr.T("hint.direct"), "Esc", tr.T("hint.back"))
+		"1–"+strconv.Itoa(len(rows)), tr.T("hint.direct"), "Esc", tr.T("hint.back"))
+}
+
+// accountAct carries out an action of the Service Account screen on real data.
+func (m Model) accountAct(row int) (Model, tea.Cmd) {
+	tr, lv := m.tr, m.lv
+	switch m.accountRows()[row] {
+	case "acc.check":
+		return m.checkAccess()
+	case "acc.copy":
+		if email := m.account(); email != "" {
+			copyToClipboard(email)
+			m.flash = tr.T("acc.copied", email)
+		} else {
+			m.flash = tr.T("acc.none")
+		}
+	case "acc.replace":
+		return m.askKeyFile(func(m Model) (Model, tea.Cmd) {
+			m.flash = m.tr.T("acc.replaced", m.account())
+			return m, nil
+		}), nil
+	case "acc.remove":
+		if err := config.RemoveKey(lv.home); err != nil {
+			m.flash = err.Error()
+			break
+		}
+		lv.key, lv.keyData = nil, nil
+		lv.closeEngine()
+		m.screen, m.wiz = scrWizard, 1
+		m.flash = tr.T("acc.removed")
+	case "acc.seal":
+		if lv.key == nil || lv.eng == nil {
+			m.flash = tr.T("acc.none")
+			break
+		}
+		return m.askSealPassword(), nil
+	case "acc.unseal":
+		if err := config.RemoveSealedKey(lv.dest); err != nil {
+			m.flash = err.Error()
+			break
+		}
+		m.flash = tr.T("acc.unsealed")
+		m.set.sub = min(m.set.sub, len(m.accountRows())-1)
+	}
+	return m, nil
 }
 
 func (m Model) viewDest() ([]string, string) {
@@ -104,11 +183,15 @@ func (m Model) viewDest() ([]string, string) {
 	files, bytes := m.tree.selected()
 	trashN, trashBytes := m.trash.totals()
 	dest := m.destination()
+	connected := t("● "+tr.T("status.connected"), th.Ok)
+	if dest.Missing {
+		connected = t("○ "+tr.T("status.disconnected"), th.Err)
+	}
 	out := m.head(tr.T("set.dest"), tr.T("set.title"))
 	label := func(key string) cell { return t(" "+tr.T(key), th.Dim).w(12) }
 	out = append(out,
 		m.line(label("dest.path"), t(dest.Path, th.Fg)),
-		m.line(label("dest.volume"), t(dest.Volume+"  ", th.Fg), t("● "+tr.T("status.connected"), th.Ok)),
+		m.line(label("dest.volume"), t(dest.Volume+"  ", th.Fg), connected),
 		m.line(label("dest.free"), t(tr.T("status.free.val", format.Size(dest.Free), format.Size(dest.Capacity)), th.Fg)),
 		m.line(label("dest.copy"), t(tr.N("n.files", files)+" · "+format.Size(bytes), th.Fg)),
 		m.line(label("dest.trash"), t(tr.N("n.files", trashN)+" · "+format.Size(trashBytes), th.Fg)),
@@ -258,11 +341,15 @@ func (m Model) keySettings(key string) (tea.Model, tea.Cmd) {
 			}
 		}
 	case scrAccount:
-		m.set.sub = move(m.set.sub, len(accountActions), key)
-		if row, ok := digit(key, len(accountActions)); ok {
+		rows := len(m.accountRows())
+		m.set.sub = move(m.set.sub, rows, key)
+		if row, ok := digit(key, rows); ok {
 			m.set.sub, confirm = row, true
 		}
-		if confirm {
+		switch {
+		case confirm && m.lv != nil:
+			return m.accountAct(m.set.sub)
+		case confirm:
 			m.flash = m.tr.T("demo.na")
 		}
 	case scrDest:
@@ -273,6 +360,9 @@ func (m Model) keySettings(key string) (tea.Model, tea.Cmd) {
 		switch {
 		case confirm && m.set.sub == 1:
 			m.askDest = !m.askDest
+			m.persist()
+		case confirm && m.lv != nil:
+			return m.askWhere(whereSettings), nil
 		case confirm:
 			m.flash = m.tr.T("demo.na")
 		}
@@ -283,6 +373,7 @@ func (m Model) keySettings(key string) (tea.Model, tea.Cmd) {
 		}
 		if confirm && m.setLang(m.set.sub) {
 			m.flash = m.tr.T("lang.changed")
+			m.persist()
 		}
 	case scrTheme:
 		schemes, modes := len(theme.Schemes), len(themeModes)
@@ -303,6 +394,7 @@ func (m Model) keySettings(key string) (tea.Model, tea.Cmd) {
 				m.paintBg = !m.paintBg
 			}
 			m.applyTheme()
+			m.persist()
 		}
 	}
 	return m, nil
@@ -328,6 +420,18 @@ func (m Model) viewWizard() ([]string, string) {
 		return out, m.hints("↑↓", tr.T("hint.move"), "Enter", tr.T("hint.next"))
 	case 1:
 		out := append(m.head(tr.T("wiz.key.title"), step), m.para(tr.T("wiz.key.text"), th.Fg, m.cw())...)
+		if m.lv != nil {
+			// Real data: the key is asked for, and shown once it is in.
+			next := tr.T("hint.import")
+			if m.account() != "" {
+				out = append(out, m.blank(), m.line(t(" ✓ "+tr.T("wiz.key.ok"), th.Ok), t(" · "+m.account(), th.Dim)), m.blank())
+				next = tr.T("hint.next")
+			} else {
+				out = append(out, m.blank(), m.line(t(" "+tr.T("wiz.key.need"), th.Warn)), m.blank())
+			}
+			out = append(out, m.para(tr.T("wiz.key.note"), th.Dim, m.cw())...)
+			return out, m.hints(append([]string{"Enter", next}, back...)...)
+		}
 		out = append(out, m.blank(), m.line(t(" "+tr.T("wiz.key.label"), th.Dim)), field(demo.KeyPath), m.blank(),
 			m.line(t(" ✓ "+tr.T("wiz.key.ok"), th.Ok), t(" · "+demo.Account, th.Dim)), m.blank())
 		out = append(out, m.para(tr.T("wiz.key.note"), th.Dim, m.cw())...)
@@ -335,7 +439,24 @@ func (m Model) viewWizard() ([]string, string) {
 	case 2:
 		folders := m.sharedFolders()
 		out := append(m.head(tr.T("wiz.share.title"), step), m.para(tr.T("wiz.share.text"), th.Fg, m.cw())...)
-		out = append(out, m.blank(), m.sel(t(" "+demo.Account, th.Accent).b()), m.blank(),
+		out = append(out, m.blank(), m.sel(t(" "+m.account(), th.Accent).b()), m.blank())
+		if m.lv != nil {
+			// Real data: the access is checked on request, as often as needed.
+			next := tr.T("hint.check")
+			switch {
+			case !m.lv.checked:
+			case len(m.lv.access) == 0:
+				out = append(out, m.line(t(" ! "+tr.T("wiz.share.none"), th.Warn)), m.blank())
+				next = tr.T("hint.next")
+			default:
+				out = append(out, m.line(t(" ✓ "+tr.T("wiz.share.ok", len(m.lv.access)), th.Ok)),
+					m.line(t("   "+strings.Join(m.lv.access, " · "), th.Second).b()), m.blank())
+				next = tr.T("hint.next")
+			}
+			out = append(out, m.para(tr.T("wiz.share.note"), th.Dim, m.cw())...)
+			return out, m.hints(append([]string{"Enter", next, "r", tr.T("hint.again")}, back...)...)
+		}
+		out = append(out,
 			m.line(t(" ✓ "+tr.T("wiz.share.ok", len(folders)), th.Ok)),
 			m.line(t("   "+strings.Join(folders, " · "), th.Second).b()), m.blank())
 		out = append(out, m.para(tr.T("wiz.share.note"), th.Dim, m.cw())...)
@@ -361,9 +482,29 @@ func (m Model) keyWizard(key string) (tea.Model, tea.Cmd) {
 		if m.wiz > 0 {
 			m.wiz--
 		}
+	case "r":
+		if m.lv != nil && m.wiz == 2 {
+			return m.checkAccess()
+		}
 	case "enter":
 		if m.wiz == 0 && !m.setLang(m.set.sub) {
 			return m, nil
+		}
+		if m.lv != nil {
+			// Real data: each step does its work before the next one opens.
+			switch {
+			case m.wiz == 0:
+				m.persist()
+			case m.wiz == 1 && m.lv.key == nil:
+				return m.askKeyFile(func(m Model) (Model, tea.Cmd) {
+					m.wiz = 2
+					return m, nil
+				}), nil
+			case m.wiz == 2 && !m.lv.checked:
+				return m.checkAccess()
+			case m.wiz == 2:
+				return m.askWhere(whereFirstRun), nil
+			}
 		}
 		m.wiz++
 		if m.wiz == wizardSteps {

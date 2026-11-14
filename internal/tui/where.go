@@ -5,7 +5,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"syncer-gdrive/internal/demo"
 	"syncer-gdrive/internal/format"
 )
 
@@ -13,12 +12,14 @@ import (
 // the known folders, another folder, and the switch that keeps the question
 // coming. The same switch sits in the destination settings.
 
-func (m Model) whereRows() int { return len(demo.Destinations) + 2 }
+func (m Model) whereRows() int { return len(m.dests()) + 2 }
 
 func (m Model) viewWhere() ([]string, string) {
 	th, tr := m.th, m.tr
 	rows := []string{m.line(t(" "+tr.T("where.text"), th.Fg)), m.blank()}
-	n := len(demo.Destinations)
+	dests := m.dests()
+	n := len(dests)
+	current := m.destination().Path
 	focus := 0
 	// add appends a row the cursor can stand on.
 	add := func(row int, label string, rest ...cell) {
@@ -27,13 +28,13 @@ func (m Model) viewWhere() ([]string, string) {
 		}
 		rows = append(rows, m.pick(row == m.where, label, rest...))
 	}
-	for i, d := range demo.Destinations {
+	for i, d := range dests {
 		mark := "( ) "
-		if i == m.dest {
+		if d.Path == current {
 			mark = "(•) "
 		}
 		state := t("● "+tr.T("status.connected"), th.Ok)
-		if m.opts.Demo == "no-drive" {
+		if d.Missing {
 			state = t("○ "+tr.T("status.disconnected"), th.Err)
 		}
 		last := tr.T("where.never")
@@ -42,7 +43,14 @@ func (m Model) viewWhere() ([]string, string) {
 		}
 		free := tr.T("where.free", format.Size(d.Free), format.Size(d.Capacity))
 		add(i, strconv.Itoa(i+1)+"  "+mark+d.Path, t("  ", th.Dim), state)
-		rows = append(rows, m.line(t("", th.Dim).w(10), t(d.Volume+" · "+free+" · "+last, th.Dim)))
+		detail := free + " · " + last
+		if d.Volume != "" {
+			detail = d.Volume + " · " + detail
+		}
+		if d.Missing {
+			detail = last
+		}
+		rows = append(rows, m.line(t("", th.Dim).w(10), t(detail, th.Dim)))
 	}
 	add(n, strconv.Itoa(n+1)+"  "+tr.T("where.other"))
 	rows = append(rows, m.blank())
@@ -61,19 +69,37 @@ func (m Model) keyWhere(key string) (tea.Model, tea.Cmd) {
 	if row, ok := digit(key, m.whereRows()); ok {
 		m.where, confirm = row, true
 	}
-	n := len(demo.Destinations)
+	dests := m.dests()
+	n := len(dests)
 	switch {
 	case key == "esc":
-		m.screen = scrMenu
+		switch {
+		case m.whereFor == whereSettings:
+			m.screen = scrDest
+		case m.whereFor == whereFirstRun && m.lv != nil && m.lv.eng == nil:
+			m.screen, m.wiz = scrWizard, 2 // back to the step before
+		default:
+			m.screen = scrMenu
+		}
 	case !confirm:
 		m.where = move(m.where, m.whereRows(), key)
+	case m.where < n && m.lv != nil:
+		return m.useDest(dests[m.where].Path)
 	case m.where < n:
 		m.dest = m.where
+		if m.whereFor == whereSettings {
+			m.screen = scrDest
+			break
+		}
+		m.run = m.newRun()
 		m.screen = scrPreflight
+	case m.where == n && m.lv != nil:
+		return m.askOtherFolder(), nil
 	case m.where == n:
 		m.flash = m.tr.T("demo.na")
 	default:
 		m.askDest = !m.askDest
+		m.persist()
 	}
 	return m, nil
 }

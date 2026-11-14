@@ -545,7 +545,7 @@ func (m Model) viewList(s browser) []string {
 	// the reason a file is there. It is as wide as its longest text.
 	noteW := runewidth.StringWidth(tr.N("n.files", files))
 	if s.kind == "trash" {
-		for _, key := range []string{"col.reason", "reason.drive", "reason.local"} {
+		for _, key := range []string{"col.reason", "reason.drive", "reason.local", "reason.unselected"} {
 			noteW = max(noteW, runewidth.StringWidth(tr.T(key)))
 		}
 	}
@@ -663,6 +663,8 @@ func (m Model) viewList(s browser) []string {
 				note = t("  "+tr.T("reason.drive"), th.Dim).w(noteW)
 			case "local":
 				note = t("  "+tr.T("reason.local"), th.Warn).w(noteW)
+			case "unselected":
+				note = t("  "+tr.T("reason.unselected"), th.Dim).w(noteW)
 			}
 			rest = append(rest, m.gap(), t(format.Size(it.Size), th.Fg).w(9).r(), t(s.date(it), th.Dim).w(13).r(), note)
 		}

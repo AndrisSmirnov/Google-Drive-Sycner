@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"syncer-gdrive/internal/demo"
+	"syncer-gdrive/internal/engine"
 	"syncer-gdrive/internal/format"
 )
 
@@ -22,6 +23,7 @@ const (
 // State of a queued file during the run.
 const (
 	stPending = iota
+	stRunning
 	stOK
 	stSkipped
 	stFailed
@@ -45,19 +47,51 @@ type runState struct {
 	done    int64
 	total   int64
 
+	// What the progress screen draws besides the totals: the file whose
+	// bar is shown (-1 if none), how many files are done one way or
+	// another, and the speed in bytes per second.
+	active     int
+	activeDone int64
+	finished   int
+	speed      int64
+
 	// New files on Drive that the selection does not take.
 	leftN     int
 	leftBytes int64
 
-	stopped bool
-	started time.Time
-	took    time.Duration
+	pre      preflight      // what the checks before the run found
+	result   *engine.Result // of a real run; nil in the demo
+	stopping bool           // a real run was asked to stop and is winding down
+	stopped  bool
+	started  time.Time
+	took     time.Duration
+}
+
+// preflight is what the checks before a sync found.
+type preflight struct {
+	noDrive   bool   // the destination is not there or cannot be written to
+	lostName  string // shared folders the account can no longer see
+	lostFiles int    // their copies on the drive
+	lostBytes int64
+	folders   int // shared folders the account sees
+	need      int64
+	free      int64
+	fits      bool
+	clashes   int // selected files sharing a name in their folder
+	moves     int // copies to carry to a new place
+	notCopied []notCopiedRow
+}
+
+// notCopiedRow counts files Drive holds that the copy never will.
+type notCopiedRow struct {
+	reason string
+	files  int
 }
 
 // newRun queues what the sync would download. A file that is new on Drive
 // is taken only if the selection says so (treeState.takesNew).
 func (m Model) newRun() runState {
-	r := runState{deleted: demo.DeletedOnDrive()}
+	r := runState{deleted: demo.DeletedOnDrive(), active: -1}
 	for _, c := range demo.Changes() {
 		if !c.Updated && !m.tree.takesNew(c.Path) {
 			r.leftN++
@@ -76,6 +110,16 @@ func (m Model) newRun() runState {
 			r.total += c.Size
 		}
 	}
+	dest := m.destination()
+	r.pre = preflight{noDrive: dest.Missing, need: r.total, free: dest.Free, fits: true, clashes: len(m.tree.clashes())}
+	for _, n := range m.tree.root {
+		if n.Dir {
+			r.pre.folders++
+		}
+	}
+	if m.opts.Demo == "lost-access" {
+		r.pre.lostName, r.pre.lostFiles, r.pre.lostBytes = demo.Lost.Name, 1, demo.Lost.Size
+	}
 	return r
 }
 
@@ -92,6 +136,7 @@ func (r runState) deletedBytes() int64 {
 func (m Model) viewPreflight() ([]string, string) {
 	th, tr, r := m.th, m.tr, m.run
 	dest := m.destination()
+	pre := r.pre
 	out := m.head(tr.T("pre.title"), "Drive → "+dest.Path)
 	check := func(mark string, fg lipgloss.Color, label, detail string, failed bool) string {
 		text := t(label, th.Fg).w(32)
@@ -102,7 +147,7 @@ func (m Model) viewPreflight() ([]string, string) {
 	}
 	hints := m.hints("← →", tr.T("hint.button"), "Enter", tr.T("hint.confirm"), "Esc", tr.T("hint.back"))
 
-	if m.opts.Demo == "no-drive" {
+	if pre.noDrive {
 		out = append(out, check("×", th.Err, tr.T("pre.nodrive"), dest.Path, true), m.blank())
 		out = append(out, m.note(th.Err, tr.T("pre.nodrive.text"), tr.T("pre.nodrive.note"))...)
 		out = append(out, m.blank(), m.buttons(0, tr.T("pre.back")))
@@ -110,28 +155,29 @@ func (m Model) viewPreflight() ([]string, string) {
 	}
 
 	out = append(out, check("✓", th.Ok, tr.T("pre.drive.ok"), dest.Path, false))
-	if m.opts.Demo == "lost-access" {
-		detail := tr.T("pre.lost.detail", demo.Lost.Name, format.Size(demo.Lost.Size))
+	if pre.lostName != "" && m.lv == nil {
+		// The demo shows the warning on its own.
+		detail := tr.T("pre.lost.detail", pre.lostName, format.Size(pre.lostBytes))
 		out = append(out, check("!", th.Warn, tr.T("pre.lost"), detail, true), m.blank())
 		out = append(out, m.note(th.Warn, tr.T("pre.lost.text"), tr.T("pre.lost.note"))...)
 		out = append(out, m.blank(), m.buttons(r.btn, tr.T("pre.rest"), tr.T("pre.cancel")))
 		return out, hints
 	}
 
-	folders := 0
-	for _, n := range m.tree.root {
-		if n.Dir {
-			folders++
-		}
+	out = append(out, check("✓", th.Ok, tr.T("pre.access.ok"), tr.N("n.folders", pre.folders), false))
+	space := tr.T("pre.space.detail", format.Size(pre.need), format.Size(pre.free))
+	if pre.fits {
+		out = append(out, check("✓", th.Ok, tr.T("pre.space.ok"), space, false))
+	} else {
+		out = append(out, check("×", th.Err, tr.T("pre.space.no"), space, true))
 	}
-	out = append(out,
-		check("✓", th.Ok, tr.T("pre.access.ok"), tr.N("n.folders", folders), false),
-		check("✓", th.Ok, tr.T("pre.space.ok"), tr.T("pre.space.detail", format.Size(r.total), format.Size(dest.Free)), false),
-	)
+	if pre.lostName != "" {
+		out = append(out, check("!", th.Warn, tr.T("pre.lost"), tr.T("pre.lost.detail", pre.lostName, format.Size(pre.lostBytes)), true))
+	}
 	// Selected files that share a name in one folder: the sync goes on, but
 	// says so before it starts, in case the choice was made long ago.
-	if n := len(m.tree.clashes()); n > 0 {
-		out = append(out, check("!", th.Warn, tr.T("pre.clash"), tr.T("pre.clash.detail", tr.N("n.files", n)), true))
+	if pre.clashes > 0 {
+		out = append(out, check("!", th.Warn, tr.T("pre.clash"), tr.T("pre.clash.detail", tr.N("n.files", pre.clashes)), true))
 	}
 	out = append(out,
 		m.blank(),
@@ -163,16 +209,27 @@ func (m Model) viewPreflight() ([]string, string) {
 	}
 	out = append(out,
 		change("~", th.Second, tr.T("pre.updated"), tr.N("n.files", updN)+" · "+format.Size(updB), ""),
+	)
+	if pre.moves > 0 {
+		out = append(out, change("→", th.Second, tr.T("pre.moves"), tr.N("n.files", pre.moves), ""))
+	}
+	out = append(out,
 		change("−", th.Warn, tr.T("pre.deleted"), tr.N("n.files", len(r.deleted))+" · "+format.Size(r.deletedBytes()), tr.T("pre.deleted.note")),
 		change("≠", th.Warn, tr.T("pre.local"), tr.N("n.files", localN), tr.T("pre.local.note")),
-		m.blank(),
-		m.buttons(r.btn, tr.T("pre.start"), tr.T("pre.cancel")),
 	)
+	for _, row := range pre.notCopied {
+		out = append(out, change("·", th.Dim, tr.T("pre.not."+row.reason), tr.N("n.files", row.files), tr.T("pre.left.note")))
+	}
+	if pre.fits {
+		out = append(out, m.blank(), m.buttons(r.btn, tr.T("pre.start"), tr.T("pre.cancel")))
+	} else {
+		out = append(out, m.blank(), m.buttons(0, tr.T("pre.back")))
+	}
 	return out, hints
 }
 
 func (m Model) keyPreflight(key string) (tea.Model, tea.Cmd) {
-	blocked := m.opts.Demo == "no-drive"
+	blocked := m.run.pre.noDrive || (m.lv != nil && !m.run.pre.fits)
 	switch key {
 	case "left", "h", "right", "l", "tab":
 		if !blocked {
@@ -218,7 +275,11 @@ func (m Model) viewDeleted() ([]string, string) {
 		row(th.Bg, t(tr.T("del.text"), th.Fg)),
 		row(th.Bg),
 	}
-	for i, d := range r.deleted {
+	// A long list scrolls around the highlighted file: the box has eight
+	// lines of its own and a border.
+	first, last := window(r.delIdx, len(r.deleted), m.h-4-10)
+	for i := first; i < last; i++ {
+		d := r.deleted[i]
 		gap := t("", th.Dim).flex()
 		size := t(format.Size(d.Size), th.Fg).w(9).r()
 		action := m.actionCell(r.actions[i]).w(12).r()
@@ -258,7 +319,9 @@ func (m Model) keyDeleted(key string) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.screen = scrPreflight
 	case "enter":
-		m.applyDeleted()
+		if m.lv == nil {
+			m.applyDeleted()
+		}
 		return m.startRun()
 	}
 	return m, nil
@@ -284,15 +347,27 @@ func (m *Model) applyDeleted() {
 // --- progress ---
 
 func (m Model) startRun() (tea.Model, tea.Cmd) {
+	if m.lv != nil {
+		return m.startLiveRun()
+	}
 	m.screen = scrProgress
 	m.run.started = time.Now()
+	m.run.speed = bytesPerTick * 10
 	return m, tick()
 }
 
-// onTick advances the simulated download by one step.
+// onTick moves the progress screen on: a real run is read, the demo run
+// advances by one step.
 func (m Model) onTick() (tea.Model, tea.Cmd) {
 	if m.screen != scrProgress {
 		return m, nil
+	}
+	if m.lv != nil {
+		if m.lv.mon == nil {
+			return m, nil // the run is over; its result is on its way
+		}
+		m.lv.mon.fill(&m.run)
+		return m, tick()
 	}
 	r := &m.run
 	budget := bytesPerTick
@@ -306,6 +381,7 @@ func (m Model) onTick() (tea.Model, tea.Cmd) {
 			r.cur++
 			continue
 		}
+		r.state[r.cur] = stRunning
 		left := c.Size - r.curDone
 		if left > budget {
 			r.curDone += budget
@@ -318,6 +394,7 @@ func (m Model) onTick() (tea.Model, tea.Cmd) {
 		r.cur++
 		r.curDone = 0
 	}
+	r.active, r.activeDone, r.finished = r.cur, r.curDone, r.cur
 	if r.cur >= len(r.queue) {
 		return m.finishRun(false)
 	}
@@ -362,34 +439,48 @@ func (m Model) viewProgress() ([]string, string) {
 	}
 	out = append(out, bar(tr.T("run.total"), th.Accent, r.done, r.total,
 		t(tr.T("run.of", format.Size(r.done), format.Size(r.total)), th.Fg)))
-	if r.cur < len(r.queue) {
-		c := r.queue[r.cur]
-		out = append(out, bar(tr.T("run.file"), th.Second, r.curDone, c.Size,
-			t(tr.T("run.of", format.Size(r.curDone), format.Size(c.Size)), th.Fg),
+	if r.active >= 0 && r.active < len(r.queue) {
+		c := r.queue[r.active]
+		out = append(out, bar(tr.T("run.file"), th.Second, r.activeDone, c.Size,
+			t(tr.T("run.of", format.Size(r.activeDone), format.Size(c.Size)), th.Fg),
 			t(" · "+baseName(c.Path), th.Dim)))
+	} else {
+		out = append(out, m.blank())
 	}
 
-	speed := bytesPerTick * 10 // per second
-	eta := tr.T("eta.sec", int((r.total-r.done)/speed)+1)
-	if secs := (r.total - r.done) / speed; secs >= 60 {
-		eta = tr.T("eta.min", int(secs/60))
+	eta := "—"
+	if r.speed > 0 {
+		secs := (r.total - r.done) / r.speed
+		eta = tr.T("eta.sec", int(secs)+1)
+		if secs >= 60 {
+			eta = tr.T("eta.min", int(secs/60))
+		}
 	}
 	out = append(out, m.blank(), m.line(
-		t(tr.T("run.files")+" ", th.Dim), t(tr.T("run.files.val", r.cur, len(r.queue)), th.Fg).b(),
-		t("     "+tr.T("run.speed")+" ", th.Dim), t(format.Size(speed)+"/s", th.Fg).b(),
+		t(tr.T("run.files")+" ", th.Dim), t(tr.T("run.files.val", r.finished, len(r.queue)), th.Fg).b(),
+		t("     "+tr.T("run.speed")+" ", th.Dim), t(format.Size(r.speed)+"/s", th.Fg).b(),
 		t("     "+tr.T("run.left")+" ", th.Dim), t(eta, th.Fg).b(),
 	), m.rule())
 
-	for i, c := range r.queue {
+	// With real data the notes do not name a cause the program cannot
+	// know: the summary tells what happened to each file.
+	skipped, failed := tr.T("run.toobig"), tr.T("run.network")
+	if m.lv != nil {
+		skipped, failed = tr.T("run.notcopied"), tr.T("run.failed")
+	}
+	// A long queue scrolls with the file that is on its way.
+	first, last := window(max(r.active, 0), len(r.queue), m.h-4-7)
+	for i := first; i < last; i++ {
+		c := r.queue[i]
 		size := format.Size(c.Size)
-		switch {
-		case r.state[i] == stOK:
+		switch r.state[i] {
+		case stOK:
 			out = append(out, m.line(t(" ✓ ", th.Ok), t(c.Path, th.Fg), m.gap(), t(size+" ", th.Dim)))
-		case r.state[i] == stSkipped:
-			out = append(out, m.line(t(" ! ", th.Warn), t(c.Path, th.Fg), m.gap(), t(tr.T("run.toobig")+" ", th.Warn)))
-		case r.state[i] == stFailed:
-			out = append(out, m.line(t(" × ", th.Err), t(c.Path, th.Fg), m.gap(), t(tr.T("run.network")+" ", th.Err)))
-		case i == r.cur:
+		case stSkipped:
+			out = append(out, m.line(t(" ! ", th.Warn), t(c.Path, th.Fg), m.gap(), t(skipped+" ", th.Warn)))
+		case stFailed:
+			out = append(out, m.line(t(" × ", th.Err), t(c.Path, th.Fg), m.gap(), t(failed+" ", th.Err)))
+		case stRunning:
 			out = append(out, m.line(t(" ↓ ", th.Accent), t(c.Path, th.Accent).b(), m.gap(), t(size+" ", th.Fg)))
 		default:
 			out = append(out, m.line(t(" · ", th.Dim), t(c.Path, th.Dim), m.gap(), t(size+" · "+tr.T("run.queued")+" ", th.Dim)))
@@ -399,10 +490,19 @@ func (m Model) viewProgress() ([]string, string) {
 }
 
 func (m Model) keyProgress(key string) (tea.Model, tea.Cmd) {
-	if key == "esc" {
-		return m.finishRun(true)
+	if key != "esc" {
+		return m, nil
 	}
-	return m, nil
+	if m.lv != nil {
+		// A real run finishes what is being written and then reports.
+		if m.lv.stopRun != nil && !m.run.stopping {
+			m.lv.stopRun()
+			m.run.stopping = true
+		}
+		m.flash = m.tr.T("run.stopping")
+		return m, nil
+	}
+	return m.finishRun(true)
 }
 
 // --- summary ---
@@ -450,6 +550,22 @@ func (m Model) viewSummary() ([]string, string) {
 	for _, a := range r.actions {
 		byAction[a]++
 	}
+	trashedN := byAction[actTrash] + localN
+	moved := 0
+	if res := r.result; res != nil {
+		// A real run counted for itself.
+		newN, newB, updN, updB = res.Downloaded.Files, res.Downloaded.Bytes, res.Updated.Files, res.Updated.Bytes
+		trashedN, byAction[actSkip], byAction[actDelete] = res.Trashed, res.Skipped, res.Deleted
+		moved, pendingN = res.Moved, res.Left.Files
+		skippedN, skippedPath = 0, ""
+		for _, t := range res.NotCopied {
+			skippedN += t.Files
+		}
+		failedN, failedPath = len(res.Failures), ""
+		if failedN > 0 {
+			failedPath = res.Failures[0].Target
+		}
+	}
 
 	row := func(mark string, fg lipgloss.Color, label, amount, note string, noteFg lipgloss.Color) string {
 		return m.line(t(" "+mark+" ", fg), t(label, th.Fg).w(22), t(amount, th.Fg).w(22), t(note, noteFg))
@@ -457,12 +573,15 @@ func (m Model) viewSummary() ([]string, string) {
 	out = append(out,
 		row("✓", th.Ok, tr.T("sum.downloaded"), tr.N("n.files", newN)+" · "+format.Size(newB), "", th.Dim),
 		row("✓", th.Ok, tr.T("sum.updated"), tr.N("n.files", updN)+" · "+format.Size(updB), "", th.Dim),
-		row("→", th.Second, tr.T("sum.trash"), tr.N("n.files", byAction[actTrash]+localN), "", th.Dim),
+		row("→", th.Second, tr.T("sum.trash"), tr.N("n.files", trashedN), "", th.Dim),
 		row("→", th.Warn, tr.T("sum.skip"), tr.N("n.files", byAction[actSkip]), "", th.Dim),
 		row("−", th.Err, tr.T("sum.removed"), tr.N("n.files", byAction[actDelete]), "", th.Dim),
 		row("!", th.Warn, tr.T("sum.skipped"), tr.N("n.files", skippedN), skippedPath, th.Warn),
 		row("×", th.Err, tr.T("sum.failed"), tr.N("n.files", failedN), failedPath, th.Err),
 	)
+	if moved > 0 {
+		out = append(out, row("→", th.Second, tr.T("sum.moved"), tr.N("n.files", moved), "", th.Dim))
+	}
 	if r.stopped {
 		out = append(out, m.blank(), m.line(t(" "+tr.T("sum.pending", tr.N("n.files", pendingN)), th.Warn)))
 	}
